@@ -1,12 +1,24 @@
 #include "board.h"
 #include <sstream>
 #include <iostream>
-#include <bitset>
+
 namespace AdiChess {
 
     Board::Board(std::string const &fenString) {
         parseFenString(fenString);
+        MoveGeneration::init();
     }
+
+    Piece Board::operator()(int i, int j) const {
+        int position = Utility::flattenCoordinates(i, j);
+        for (int i = 0; i < static_cast<int>(Piece::Type::NUM_PIECES); ++i) {
+            if (Utility::checkBit(bitboards[i][0], position))
+                return Piece(boardPieceMap[i], Side::W);
+            else if (Utility::checkBit(bitboards[i][1], position))
+                return Piece(boardPieceMap[i], Side::B);
+        }
+        return Piece(Piece::Type::NONE, Side::NONE);
+    } 
 
     void Board::parseFenString(std::string const &fenString) {        
         std::string token;
@@ -103,15 +115,4 @@ namespace AdiChess {
         ss >> token;
         fullMoveNumber = std::stoi(token);
     }   
-
-    Piece Board::operator()(int i, int j) const {
-        int position = Utility::flattenCoordinates(i, j);
-        for (int i = 0; i < static_cast<int>(Piece::Type::NUM_PIECES); ++i) {
-            if (Utility::checkBit(bitboards[i][0], position))
-                return Piece(boardPieceMap[i], Side::W);
-            else if (Utility::checkBit(bitboards[i][1], position))
-                return Piece(boardPieceMap[i], Side::B);
-        }
-        return Piece(Piece::Type::NONE, Side::NONE);
-    } 
 }

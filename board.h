@@ -1,6 +1,6 @@
+#pragma once
+
 #include "piece.h"
-#include "bitOps.h"
-#include <typeinfo>
 
 namespace AdiChess {
 
@@ -9,7 +9,6 @@ class Board {
 public:
     Board(std::string const &fenString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     Piece operator() (int i, int j) const;
-    void operator()(int position, Piece const &piece, Side const &side);
     
     // Pretty print
     friend std::ostream &operator<<(std::ostream &os, Board const &board) {
@@ -27,9 +26,9 @@ public:
         os << std::string("\n+---+---+---+---+---+---+---+---+\n");
         for (int i = 0; i < 8; ++i) {
             for (int j = 0; j < 8; ++j) {
-                os << std::string("  ") << board(i, j) << std::string(" ");
+                os << std::string("| ") << board(i, j) << std::string(" ");
             }
-            os << std::string("\n+---+---+---+---+---+---+---+---+\n");
+            os << std::string("|\n+---+---+---+---+---+---+---+---+\n");
         }
         
         return os << std::string("  a   b   c   d   e   f   g   h\n");
@@ -40,10 +39,11 @@ private:
     int halfMoveClock = 0;
     int fullMoveNumber = 0;
     uint64_t enPassantTarget = -1;
-    void parseFenString(std::string const &fenString);
-    Piece::Type boardPieceMap[6] = {Piece::Type::K, Piece::Type::Q, Piece::Type::B, Piece::Type::R, Piece::Type::H, Piece::Type::P};
+    Piece::Type boardPieceMap[6] = {Piece::Type::K, Piece::Type::Q, Piece::Type::B, Piece::Type::R, Piece::Type::N, Piece::Type::P};
     Side player;
     Side opponent;
+
+    void parseFenString(std::string const &fenString);
 };
 
 }
