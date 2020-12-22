@@ -4,5 +4,6 @@ project(AdiChess)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-
-add_executable(AdiChess main.cpp board.cpp)
+set(CMAKE_CXX_COMPILER "g++")
+add_compile_options(-mpopcnt)
+add_executable(AdiChess main.cpp board.cpp moveGeneration.cpp piece.cpp)

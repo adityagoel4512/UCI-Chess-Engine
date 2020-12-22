@@ -1,4 +1,5 @@
 #include <string>
+#include "moveGeneration.h"
 
 namespace AdiChess {
     
@@ -9,13 +10,15 @@ namespace AdiChess {
     struct Piece {
     
         enum class Type {
-            R, H, B, Q, K, P, NONE, NUM_PIECES=6
+            R, N, B, Q, K, P, NONE, NUM_PIECES=6
         };
 
         Type type;
         Side side;
         
         Piece(Type const &type_, Side const &side_): type(type_), side(side_) {}
+
+        uint64_t getAttackMap(uint64_t position, uint64_t occupied);
 
         friend std::ostream &operator<<(std::ostream &os, Piece const &piece) {
             switch (piece.type) {
@@ -34,8 +37,8 @@ namespace AdiChess {
                 case Type::B:
                     os << std::string(piece.side ? "b" : "B");
                     break;
-                case Type::H:
-                    os << std::string(piece.side ? "k" : "K");
+                case Type::N:
+                    os << std::string(piece.side ? "n" : "N");
                     break;  
                 case Type::P:
                     os << std::string(piece.side ? "p" : "P");
@@ -46,12 +49,6 @@ namespace AdiChess {
             return os;
         }
 
-
-    
-
-
     };
-   
-
 
 };
