@@ -9,7 +9,8 @@ class Board {
 public:
     Board(std::string const &fenString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     Piece operator() (int i, int j) const;
-    
+    void operator()(int i, int j, Piece const &piece);
+    void makeMove(Move &move);
     // Pretty print
     friend std::ostream &operator<<(std::ostream &os, Board const &board) {
         os << std::string("Full moves: ") << std::to_string(board.fullMoveNumber) << std::string("\n");
@@ -33,16 +34,22 @@ public:
         
         return os << std::string("  a   b   c   d   e   f   g   h\n");
     }
+
+
 private:
     uint64_t bitboards[6][2] = {0};
     bool castlingRights[2][2] = {0};
     int halfMoveClock = 0;
     int fullMoveNumber = 0;
     uint64_t enPassantTarget = -1;
-    Piece::Type boardPieceMap[6] = {Piece::Type::K, Piece::Type::Q, Piece::Type::B, Piece::Type::R, Piece::Type::N, Piece::Type::P};
     Side player;
     Side opponent;
     void parseFenString(std::string const &fenString);
+    void setPiece(uint64_t position);
+    Piece operator()(int position) const;
+    void operator()(int position, Piece const &piece);
+    void clearPiece(int position, Piece const &piece);
+    void movePiece(uint64_t from, uint64_t to);
 };
 
 }

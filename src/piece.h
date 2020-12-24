@@ -10,7 +10,7 @@ namespace AdiChess {
     struct Piece {
     
         enum class Type {
-            R, N, B, Q, K, P, NONE, NUM_PIECES=6
+            K, Q, B, R, N, P, NONE, NUM_PIECES=6
         };
 
         Type type;

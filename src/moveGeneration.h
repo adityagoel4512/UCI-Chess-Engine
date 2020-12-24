@@ -1,6 +1,9 @@
 #pragma once
-#include <cstdint>
 #include "move.h"
+
+#include <cstdint>
+#include <cassert>
+
 // Classical approach
 
 namespace MoveGeneration {
