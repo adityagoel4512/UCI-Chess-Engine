@@ -38,10 +38,15 @@ namespace Utility {
         bitString |= (static_cast<UINT>(1) << n);
     }
 
+    template <typename UINT>
+    constexpr void clearBit(UINT &bitString, int n) {        
+        bitString &= ~(static_cast<UINT>(1) << n);
+    }
+
     constexpr int flattenCoordinates(int x, int y) {
         return 63-((x << 3) + y);  
     }
-
+    
     inline void printGrid(uint64_t bitString, std::ostream &os) {
         os << std::string("\n+---+---+---+---+---+---+---+---+\n");
         for (int i = 0; i < 8; ++i) {

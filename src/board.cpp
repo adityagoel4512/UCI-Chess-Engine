@@ -1,6 +1,7 @@
 #include "board.h"
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 namespace AdiChess {
 
@@ -9,16 +10,49 @@ namespace AdiChess {
         MoveGeneration::init();
     }
 
-    Piece Board::operator()(int i, int j) const {
-        int position = Utility::flattenCoordinates(i, j);
+    void Board::makeMove(Move &move) {
+        movePiece(move.getFrom(), move.getTo());
+        Piece piece = (*this)(move.getFrom());
+        ++halfMoveClock;
+        if (piece.side == Side::B) {
+            ++fullMoveNumber;
+        }
+
+        std::swap(player, opponent);
+    }
+
+    Piece Board::operator()(int position) const {
         for (int i = 0; i < static_cast<int>(Piece::Type::NUM_PIECES); ++i) {
             if (Utility::checkBit(bitboards[i][0], position))
-                return Piece(boardPieceMap[i], Side::W);
+                return {static_cast<Piece::Type>(i), Side::W};
             else if (Utility::checkBit(bitboards[i][1], position))
-                return Piece(boardPieceMap[i], Side::B);
+                return {static_cast<Piece::Type>(i), Side::B};
         }
-        return Piece(Piece::Type::NONE, Side::NONE);
+        return {Piece::Type::NONE, Side::NONE};
+    }
+
+
+    void Board::movePiece(uint64_t from, uint64_t to) {
+        Piece piece = (*this)(from);
+        clearPiece(from, piece);
+        (*this)(to, piece);
+    }
+    
+    void Board::operator()(int position, Piece const &piece) {
+        Utility::setBit(bitboards[static_cast<int>(piece.type)][piece.side], position);
+    }
+    
+    Piece Board::operator()(int i, int j) const {
+        return (*this)(Utility::flattenCoordinates(i, j));
     } 
+
+    void Board::operator()(int i, int j, Piece const &piece) {
+        (*this)(Utility::flattenCoordinates(i, j), piece);
+    }
+
+    void Board::clearPiece(int position, Piece const &piece) {
+        Utility::clearBit(bitboards[static_cast<int>(piece.type)][piece.side], position);
+    }
 
     void Board::parseFenString(std::string const &fenString) {        
         std::string token;

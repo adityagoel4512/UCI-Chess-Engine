@@ -7,4 +7,3 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_COMPILER "g++")
 
 add_subdirectory(src) 
-add_subdirectory(tests)
