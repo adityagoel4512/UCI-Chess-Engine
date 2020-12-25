@@ -14,6 +14,7 @@ namespace AdiChess {
         uint64_t source = move.getFrom();
         uint64_t target = move.getTo();
         auto flag = move.getFlag();
+        
         // Update en passant target square if double pawn push
         if (flag == Move::DOUBLE_PAWN_PUSH) {
             if (currentPlayer == Side::W) {
@@ -69,28 +70,26 @@ namespace AdiChess {
         movePiece(kingLocation >> 3, kingLocation >> 1);
     }
 
-    bool Board::canKingSideCastle() const {
+    bool Board::canKingSideCastle(uint64_t oppostionAttacks) const {
+        // Check if castling flags permit castling
         bool castleLegal = (castlingRights >> (2 * currentPlayer)) & 0b10;
         if (!castleLegal)
             return false;
+        
+        // Check if path for castling is clear and opposition does not attack castling path
         uint64_t clearPiecesMask = currentPlayer == Side::W ? 0x0000000000000006 : 0x0600000000000000;
-        for (int i = 0; i < static_cast<int>(Piece::Type::NUM_PIECES); ++i) {
-            if ((bitboards[i][0] | bitboards[i][1]) & clearPiecesMask)
-                return false;
-        } 
-        return true;
+        return !(oppostionAttacks & clearPiecesMask);
     }
 
-    bool Board::canQueenSideCastle() const {
+    bool Board::canQueenSideCastle(uint64_t oppostionAttacks) const {
+        // Check if castling flags permit castling
         bool castleLegal = (castlingRights >> (2 * currentPlayer)) & 0b1;
         if (!castleLegal)
             return false;
+
+        // Check if path for castling is clear and opposition does not attack castling path
         uint64_t clearPiecesMask = currentPlayer == Side::W ? 0x0000000000000070 : 0x7000000000000000;
-        for (int i = 0; i < static_cast<int>(Piece::Type::NUM_PIECES); ++i) {
-            if ((bitboards[i][0] | bitboards[i][1]) & clearPiecesMask)
-                return false;
-        } 
-        return true;
+        return !(oppostionAttacks & clearPiecesMask);
     }
 
     Piece Board::operator()(int position) const {

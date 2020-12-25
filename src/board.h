@@ -17,8 +17,8 @@ public:
     uint64_t getPositions(Piece const &piece) const;
     uint64_t getPositions(Side const &side) const;
 
-    bool canQueenSideCastle() const;
-    bool canKingSideCastle() const;
+    bool canQueenSideCastle(uint64_t oppostionAttacks) const;
+    bool canKingSideCastle(uint64_t oppostionAttacks) const;
 
     Side getCurrentPlayer() const {
         return currentPlayer;
@@ -32,9 +32,6 @@ public:
         return position == enPassantTarget;
     }
 
-
-
-    // Pretty print
     friend std::ostream &operator<<(std::ostream &os, Board const &board) {
         os << std::string("Full moves: ") << std::to_string(board.fullMoveNumber) << std::string("\n");
         os << std::string("Side to move: ");

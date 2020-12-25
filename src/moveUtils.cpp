@@ -61,7 +61,7 @@ void init() {
         rayAttacks[Direction::S][position] = 0x0080808080808080ULL >> (63 - position);
         uint8_t bitsRight = position % 8ULL;
         rayAttacks[Direction::E][position] = ((1ULL << bitsRight) - 1ULL) << (position - bitsRight);
-        rayAttacks[Direction::W][position] = position == 64 ? 0 : ((1ULL << 7 - bitsRight) - 1ULL) << (position + 1);
+        rayAttacks[Direction::W][position] = position == 64 ? 0 : ((1ULL << 7) - bitsRight - 1ULL) << (position + 1);
         rayAttacks[Direction::NE][position] = eastN(0x102040810204000ULL, 7ULL - Utility::getCol(position)) << (Utility::getRow(position) << 3);
         rayAttacks[Direction::NW][position] = westN(0x8040201008040200ULL, Utility::getCol(position)) << (Utility::getRow(position) << 3);
         rayAttacks[Direction::SE][position] = eastN(0x40201008040201ULL, 7ULL - Utility::getCol(position)) >> ((7ULL - Utility::getRow(position)) << 3);
@@ -74,7 +74,6 @@ void init() {
 
         uint64_t pos = (1ULL << position);
         int column = Utility::getCol(position);
-        int row = Utility::getRow(position);
         if (column != 7) {
             knightAttacks[position] |= (pos << 17);
             knightAttacks[position] |= (pos >> 15);

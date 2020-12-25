@@ -34,16 +34,18 @@ public:
         return moves.end();
     }
 private:
-    template<Piece::Type > void generateMoves();
-    template<Piece::Type pieceType> void generateAttackMoves(uint64_t position);
-    template<Side side> void generatePawnPushMove(uint64_t position, uint64_t freePositions);
+    template<Piece::Type> void generateMoves();
+    template<Piece::Type> void generateAttackMoves(uint64_t position);
+    template<Side> void generatePawnPushMove(uint64_t position, uint64_t freePositions);
 
-    uint64_t getAttackMap(uint64_t position, uint64_t oppositionOccupied, Piece::Type const pieceType);
+    uint64_t getAttackMap(uint64_t position, Piece::Type const pieceType);
     void generateLegalMoves();
 
     const Board board;
     const Side currentPlayer;
-    uint64_t promotionRank[2] = {rank8, rank1};
+    const uint64_t friendlyOccupied;
+    const uint64_t oppositionOccupied;
+    const uint64_t promotionRank[2] = {rank8, rank1};
     std::vector<Move> moves;
 };
 
