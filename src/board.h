@@ -59,6 +59,20 @@ public:
     }
 
 private:
+    void setPiece(uint64_t position);
+    void clearPiece(int position, Piece const &piece);
+    void movePiece(uint64_t from, uint64_t to);
+
+    void makeCapture(Move const &move);
+    void makePromotion(Move const &move);
+    void makeQueenSideCastle();
+    void makeKingSideCastle();
+
+    Piece operator() (int i, int j) const;
+    void operator()(int i, int j, Piece const &piece);
+
+    void parseFenString(std::string const &fenString);
+
     uint64_t bitboards[6][2] = {0};
     uint8_t castlingRights = 0;
     int halfMoveClock = 0;
@@ -66,16 +80,6 @@ private:
     uint64_t enPassantTarget = -1;
     Side currentPlayer;
     Side opponent;
-    void parseFenString(std::string const &fenString);
-    void setPiece(uint64_t position);
-    void clearPiece(int position, Piece const &piece);
-    void movePiece(uint64_t from, uint64_t to);
-    void makeCapture(Move const &move);
-    void makePromotion(Move const &move);
-    void makeQueenSideCastle();
-    void makeKingSideCastle();
-    Piece operator() (int i, int j) const;
-    void operator()(int i, int j, Piece const &piece);
 };
 
 }

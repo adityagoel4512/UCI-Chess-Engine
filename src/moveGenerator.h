@@ -10,10 +10,10 @@ enum class GenType {
 };
 
 class MoveGenerator {
-    using const_iterator = std::vector<AdiChess::Move>::const_iterator;
-    using iterator = std::vector<AdiChess::Move>::iterator;
+    using const_iterator = std::vector<Move>::const_iterator;
+    using iterator = std::vector<Move>::iterator;
 public:
-    explicit MoveGenerator(AdiChess::Board const &);
+    explicit MoveGenerator(Board const &);
     size_t size() const {
         return moves.size();
     }
@@ -34,14 +34,17 @@ public:
         return moves.end();
     }
 private:
-    std::vector<AdiChess::Move> moves;
-    const AdiChess::Board board;
-    void generateLegalMoves();
     template<Piece::Type > void generateMoves();
-    uint64_t getAttackMap(uint64_t position, uint64_t oppositionOccupied, Piece::Type const pieceType);
     template<Piece::Type pieceType> void generateAttackMoves(uint64_t position);
     template<Side side> void generatePawnPushMove(uint64_t position, uint64_t freePositions);
+
+    uint64_t getAttackMap(uint64_t position, uint64_t oppositionOccupied, Piece::Type const pieceType);
+    void generateLegalMoves();
+
+    const Board board;
+    const Side currentPlayer;
     uint64_t promotionRank[2] = {rank8, rank1};
+    std::vector<Move> moves;
 };
 
 }

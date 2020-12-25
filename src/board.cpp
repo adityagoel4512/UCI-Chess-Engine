@@ -13,9 +13,9 @@ namespace AdiChess {
     void Board::makeMove(Move &move) {
         uint64_t source = move.getFrom();
         uint64_t target = move.getTo();
-
+        auto flag = move.getFlag();
         // Update en passant target square if double pawn push
-        if (move.getFlag() == Move::DOUBLE_PAWN_PUSH) {
+        if (flag == Move::DOUBLE_PAWN_PUSH) {
             if (currentPlayer == Side::W) {
                 enPassantTarget = target >> 8;
             } else {
@@ -25,9 +25,9 @@ namespace AdiChess {
         
         if (move.isCapture()) {
             makeCapture(move);
-        } else if (move.getFlag() == Move::KING_CASTLE) {
+        } else if (flag == Move::KING_CASTLE) {
             makeKingSideCastle();
-        } else if (move.getFlag() == Move::QUEEN_CASTLE) {
+        } else if (flag == Move::QUEEN_CASTLE) {
             makeQueenSideCastle();
         } else {
             movePiece(source, target);
@@ -35,9 +35,8 @@ namespace AdiChess {
 
         makePromotion(move);
 
-        Piece piece = (*this)(source);
         ++halfMoveClock;
-        if (piece.side == Side::B) {
+        if (currentPlayer == Side::B) {
             ++fullMoveNumber;
         }
 
@@ -56,14 +55,14 @@ namespace AdiChess {
         return allPieces;
     }
 
-    // Assumes castling is valid
+    // Assumes castling is permitted
     void Board::makeQueenSideCastle() {
         uint64_t kingLocation = currentPlayer == Side::B ? 0x0800000000000000 : 0x0000000000000080;
         movePiece(kingLocation, kingLocation << 2);
         movePiece(kingLocation << 4, kingLocation << 1);
     }
 
-    // Assumes castling is valid
+    // Assumes castling is permitted
     void Board::makeKingSideCastle() {
         uint64_t kingLocation = currentPlayer == Side::B ? 0x0800000000000000 : 0x0000000000000080;
         movePiece(kingLocation, kingLocation >> 2);

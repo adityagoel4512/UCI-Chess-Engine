@@ -3,7 +3,7 @@
 #include <iostream>
 namespace MoveGeneration {
 
-    MoveGenerator::MoveGenerator(AdiChess::Board const &board_): board(board_) {
+    MoveGenerator::MoveGenerator(AdiChess::Board const &board_): board(board_), currentPlayer(board_.getCurrentPlayer()) {
         generateLegalMoves();
     }
 
@@ -11,7 +11,6 @@ namespace MoveGeneration {
     // Sliding piece pseudo legal moves
     template<Piece::Type pieceType>
     void MoveGenerator::generateMoves() {
-        Side currentPlayer = board.getCurrentPlayer();
         uint64_t positions = board.getPositions(Piece(pieceType, currentPlayer));
         uint64_t currentSidePieceMap = board.getPositions(board.getCurrentPlayer());
 
@@ -25,7 +24,6 @@ namespace MoveGeneration {
     // Specialisation for King to add consideration for castling
     template<>
     void MoveGenerator::generateMoves<Piece::Type::K>() {
-        Side currentPlayer = board.getCurrentPlayer();
         uint64_t position = Utility::bitScanForward(board.getPositions(Piece(Piece::Type::K, currentPlayer)));
         uint64_t currentSidePieceMap = board.getPositions(board.getCurrentPlayer());
 
@@ -41,7 +39,7 @@ namespace MoveGeneration {
             moves.emplace_back(0, 0, Move::Flag::QUEEN_CASTLE);
         }
     }
-    
+
     template<Piece::Type pieceType>
     void MoveGenerator::generateAttackMoves(uint64_t position) {
         uint64_t oppositionOccupied = board.getPositions(board.getOpponent());
@@ -100,7 +98,6 @@ namespace MoveGeneration {
     // Specialisation for pawns to add consideration for promotions, push moves and en passant captures
     template<>
     void MoveGenerator::generateMoves<Piece::Type::P>() {
-        Side currentPlayer = board.getCurrentPlayer();
         uint64_t positions = board.getPositions(Piece(Piece::Type::P, currentPlayer));
         uint64_t oppositionOccupied = board.getPositions(board.getOpponent());
         uint64_t friendlyOccupied = board.getPositions(board.getCurrentPlayer());
