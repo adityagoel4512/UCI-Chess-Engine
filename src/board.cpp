@@ -11,8 +11,31 @@ namespace AdiChess {
     }
 
     void Board::makeMove(Move &move) {
-        movePiece(move.getFrom(), move.getTo());
-        Piece piece = (*this)(move.getFrom());
+        uint64_t source = move.getFrom();
+        uint64_t target = move.getTo();
+
+        // Update en passant target square if double pawn push
+        if (move.getFlag() == Move::DOUBLE_PAWN_PUSH) {
+            if (currentPlayer == Side::W) {
+                enPassantTarget = target >> 8;
+            } else {
+                enPassantTarget = target << 8;
+            }
+        }
+        
+        if (move.isCapture()) {
+            makeCapture(move);
+        } else if (move.getFlag() == Move::KING_CASTLE) {
+            makeKingSideCastle();
+        } else if (move.getFlag() == Move::QUEEN_CASTLE) {
+            makeQueenSideCastle();
+        } else {
+            movePiece(source, target);
+        }
+
+        makePromotion(move);
+
+        Piece piece = (*this)(source);
         ++halfMoveClock;
         if (piece.side == Side::B) {
             ++fullMoveNumber;
@@ -33,6 +56,44 @@ namespace AdiChess {
         return allPieces;
     }
 
+    // Assumes castling is valid
+    void Board::makeQueenSideCastle() {
+        uint64_t kingLocation = currentPlayer == Side::B ? 0x0800000000000000 : 0x0000000000000080;
+        movePiece(kingLocation, kingLocation << 2);
+        movePiece(kingLocation << 4, kingLocation << 1);
+    }
+
+    // Assumes castling is valid
+    void Board::makeKingSideCastle() {
+        uint64_t kingLocation = currentPlayer == Side::B ? 0x0800000000000000 : 0x0000000000000080;
+        movePiece(kingLocation, kingLocation >> 2);
+        movePiece(kingLocation >> 3, kingLocation >> 1);
+    }
+
+    bool Board::canKingSideCastle() const {
+        bool castleLegal = (castlingRights >> (2 * currentPlayer)) & 0b10;
+        if (!castleLegal)
+            return false;
+        uint64_t clearPiecesMask = currentPlayer == Side::W ? 0x0000000000000006 : 0x0600000000000000;
+        for (int i = 0; i < static_cast<int>(Piece::Type::NUM_PIECES); ++i) {
+            if ((bitboards[i][0] | bitboards[i][1]) & clearPiecesMask)
+                return false;
+        } 
+        return true;
+    }
+
+    bool Board::canQueenSideCastle() const {
+        bool castleLegal = (castlingRights >> (2 * currentPlayer)) & 0b1;
+        if (!castleLegal)
+            return false;
+        uint64_t clearPiecesMask = currentPlayer == Side::W ? 0x0000000000000070 : 0x7000000000000000;
+        for (int i = 0; i < static_cast<int>(Piece::Type::NUM_PIECES); ++i) {
+            if ((bitboards[i][0] | bitboards[i][1]) & clearPiecesMask)
+                return false;
+        } 
+        return true;
+    }
+
     Piece Board::operator()(int position) const {
         for (int i = 0; i < static_cast<int>(Piece::Type::NUM_PIECES); ++i) {
             if (Utility::checkBit(bitboards[i][0], position))
@@ -46,9 +107,56 @@ namespace AdiChess {
 
     void Board::movePiece(uint64_t from, uint64_t to) {
         Piece piece = (*this)(from);
+
+        // Update castling bits
+        if (piece.type == Piece::Type::K) {
+            castlingRights &= ~(0b11 << (2 * currentPlayer));
+        } else if (piece.type == Piece::Type::R) {
+            if (from & MoveGeneration::fileA) {
+                castlingRights &= ~(0b1 << (2 * currentPlayer));
+            } else if (from & MoveGeneration::fileH) {
+                castlingRights &= ~(0b10 << (2 * currentPlayer));
+            }
+        }
+
         clearPiece(from, piece);
         (*this)(to, piece);
     }
+
+    void Board::makeCapture(Move const &move) {
+        auto moveFlag = move.getFlag();
+
+        if (moveFlag == Move::Flag::EN_PASSANT_CAPTURE) {
+            clearPiece(enPassantTarget, (*this)(enPassantTarget));
+        } else {
+            clearPiece(move.getTo(), (*this)(move.getTo()));
+        }
+
+        movePiece(move.getFrom(), move.getTo());
+    }
+
+    void Board::makePromotion(Move const &move) {
+        auto moveFlag = move.getFlag();
+        switch (moveFlag) {
+            case Move::Flag::BISHOP_PROMOTION:
+            case Move::Flag::BISHOP_PROMO_CAPTURE:
+                (*this)(move.getTo(), Piece(Piece::Type::B, currentPlayer));
+                break;
+            case Move::Flag::KNIGHT_PROMOTION:
+            case Move::Flag::KNIGHT_PROMO_CAPTURE:
+                (*this)(move.getTo(), Piece(Piece::Type::N, currentPlayer));
+                break;
+            case Move::Flag::QUEEN_PROMOTION:
+            case Move::Flag::QUEEN_PROMO_CAPTURE:
+                (*this)(move.getTo(), Piece(Piece::Type::Q, currentPlayer));
+                break;
+            case Move::Flag::ROOK_PROMOTION:
+            case Move::Flag::ROOK_PROMO_CAPTURE:
+                (*this)(move.getTo(), Piece(Piece::Type::R, currentPlayer));
+                break;
+        }
+    }
+
     
     void Board::operator()(int position, Piece const &piece) {
         Utility::setBit(bitboards[static_cast<int>(piece.type)][piece.side], position);
@@ -136,17 +244,17 @@ namespace AdiChess {
 
         ss >> token;
 
-        // Castling rights
+        // Castling rights [Black King Side, Black Queen Side, White King Side, White Queen Side]
         if (token != "-") {
             for (char c : token) {
                 if (c == 'K') 
-                    castlingRights[0][0] = 1;
+                    castlingRights |= 0b0010;
                 else if (c == 'k')
-                    castlingRights[1][0] = 1;
+                    castlingRights |= 0b0001;
                 else if (c == 'Q') 
-                    castlingRights[0][1] = 1;
+                    castlingRights |= 0b1000;
                 else if (c == 'q')
-                    castlingRights[1][1] = 1;
+                    castlingRights |= 0b0100;
             }
         }
 

@@ -38,7 +38,10 @@ private:
     const AdiChess::Board board;
     void generateLegalMoves();
     template<Piece::Type > void generateMoves();
-    uint64_t getAttackMap(uint64_t position, uint64_t occupied, Piece::Type const pieceType);
+    uint64_t getAttackMap(uint64_t position, uint64_t oppositionOccupied, Piece::Type const pieceType);
+    template<Piece::Type pieceType> void generateAttackMoves(uint64_t position);
+    template<Side side> void generatePawnPushMove(uint64_t position, uint64_t freePositions);
+    uint64_t promotionRank[2] = {rank8, rank1};
 };
 
 }

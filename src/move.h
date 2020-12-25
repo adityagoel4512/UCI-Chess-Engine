@@ -26,7 +26,7 @@ public:
 
     uint64_t getTo() const;
     uint64_t getFrom() const;
-    uint64_t getFlags() const;
+    uint64_t getFlag() const;
     bool isCapture() const;
 
     bool operator==(Move const &other) {

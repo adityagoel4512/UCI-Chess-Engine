@@ -13,8 +13,12 @@ public:
     void operator()(int position, Piece const &piece);
 
     void makeMove(Move &move);
+
     uint64_t getPositions(Piece const &piece) const;
     uint64_t getPositions(Side const &side) const;
+
+    bool canQueenSideCastle() const;
+    bool canKingSideCastle() const;
 
     Side getCurrentPlayer() const {
         return currentPlayer;
@@ -23,6 +27,12 @@ public:
     Side getOpponent() const {
         return opponent;
     }
+
+    bool validEnPassant(uint64_t position) const {
+        return position == enPassantTarget;
+    }
+
+
 
     // Pretty print
     friend std::ostream &operator<<(std::ostream &os, Board const &board) {
@@ -50,7 +60,7 @@ public:
 
 private:
     uint64_t bitboards[6][2] = {0};
-    bool castlingRights[2][2] = {0};
+    uint8_t castlingRights = 0;
     int halfMoveClock = 0;
     int fullMoveNumber = 0;
     uint64_t enPassantTarget = -1;
@@ -60,6 +70,10 @@ private:
     void setPiece(uint64_t position);
     void clearPiece(int position, Piece const &piece);
     void movePiece(uint64_t from, uint64_t to);
+    void makeCapture(Move const &move);
+    void makePromotion(Move const &move);
+    void makeQueenSideCastle();
+    void makeKingSideCastle();
     Piece operator() (int i, int j) const;
     void operator()(int i, int j, Piece const &piece);
 };

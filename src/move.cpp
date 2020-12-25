@@ -12,12 +12,12 @@ namespace AdiChess {
         return move & 0x3F;
     }
 
-    uint64_t Move::getFlags() const {
+    uint64_t Move::getFlag() const {
        return (move >> 12) & 0x0F;
     }
 
     bool Move::isCapture() const {
-        auto flags = getFlags();
+        auto flags = getFlag();
         return flags == Flag::CAPTURE || flags == Flag::EN_PASSANT_CAPTURE || (flags <= Flag::QUEEN_PROMO_CAPTURE && flags >= Flag::KNIGHT_PROMO_CAPTURE);
     }
 
