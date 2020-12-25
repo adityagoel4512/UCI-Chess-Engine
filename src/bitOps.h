@@ -8,18 +8,19 @@ namespace Utility {
         return __builtin_popcountll(bitString);
     }
 
-    constexpr void bitScanForward(uint64_t &bitString) {
+    // Intrinsic has undefined behaviour if bitString is zero
+    constexpr uint64_t bitScanForward(uint64_t bitString) {
         if (!bitString)
-            return;
-        bitString = __builtin_ffsll(bitString) - 1;
+            return -1;
+        return __builtin_ctzll(bitString);
     }
 
-    constexpr void bitScanReverse(uint64_t &bitString) {
+    constexpr uint64_t bitScanReverse(uint64_t bitString) {
         if (!bitString)
-            return;
-        bitString = 63 - __builtin_clzll(bitString);
+            return -1;
+        return 63 - __builtin_clzll(bitString);
     }
-
+    
     constexpr uint64_t getRow(uint64_t bitString) {
         return bitString / 8ULL;
     }
@@ -46,7 +47,7 @@ namespace Utility {
     constexpr int flattenCoordinates(int x, int y) {
         return 63-((x << 3) + y);  
     }
-    
+
     inline void printGrid(uint64_t bitString, std::ostream &os) {
         os << std::string("\n+---+---+---+---+---+---+---+---+\n");
         for (int i = 0; i < 8; ++i) {

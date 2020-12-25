@@ -18,7 +18,19 @@ namespace AdiChess {
             ++fullMoveNumber;
         }
 
-        std::swap(player, opponent);
+        std::swap(currentPlayer, opponent);
+    }
+
+    uint64_t Board::getPositions(Piece const &piece) const {
+        return bitboards[static_cast<int>(piece.type)][piece.side];
+    }
+
+    uint64_t Board::getPositions(Side const &side) const {
+        uint64_t allPieces = 0;
+        for (int i = 0; i < static_cast<int>(Piece::Type::NUM_PIECES); ++i) {
+            allPieces |= bitboards[i][side];
+        }
+        return allPieces;
     }
 
     Piece Board::operator()(int position) const {
@@ -118,7 +130,7 @@ namespace AdiChess {
         ss >> token >> token;
 
         // Side to play
-        player = token == "w" ? Side::W : Side::B;
+        currentPlayer = token == "w" ? Side::W : Side::B;
         opponent = token == "w" ? Side::B : Side::W;
 
 

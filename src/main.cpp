@@ -1,13 +1,18 @@
 #include <iostream>
 #include <string>
 #include "board.h"
+#include "moveGenerator.h"
+
 int main(int argc, char *argv[]) {
     std::cout << "Let's play chess!\n";
 
     AdiChess::Board board;
     std::cout << board << '\n';
-    AdiChess::Move move(Utility::flattenCoordinates(6, 2), Utility::flattenCoordinates(4, 2), 0);
-    board.makeMove(move);
-    std::cout << board << '\n';
+    auto moves = MoveGeneration::MoveGenerator(board);
+
+    for (auto move : moves) {
+        std::cout << "From " << move.getFrom() << " to " << move.getTo() << "\n";
+    }
+    std::cout << moves.size() << '\n';
     return EXIT_SUCCESS;
 }

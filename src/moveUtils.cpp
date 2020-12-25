@@ -1,4 +1,4 @@
-#include "moveGeneration.h"
+#include "moveUtils.h"
 
 namespace MoveGeneration {
 
@@ -16,9 +16,9 @@ uint64_t getRayAttacks(uint64_t occupied, Direction direction, uint64_t position
     if (blocker) {
         // Checks if positive ray attack or negative ray attack
         if (direction <= Direction::E) {
-            Utility::bitScanForward(blocker);
+            blocker = Utility::bitScanForward(blocker);
         } else {
-            Utility::bitScanReverse(blocker);
+            blocker = Utility::bitScanReverse(blocker);
         }
         attacks ^= rayAttacks[direction][blocker];
     }
@@ -26,21 +26,31 @@ uint64_t getRayAttacks(uint64_t occupied, Direction direction, uint64_t position
     return attacks;
 }
 
-
-uint64_t getRankAttacks(uint64_t occupied, uint64_t position) {
-    return getRayAttacks(occupied, Direction::N, position) | getRayAttacks(occupied, Direction::S, position);
+uint64_t getRayAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, Direction direction, uint64_t position) {
+    uint64_t attacks = getRayAttacks(oppositionOccupied, direction, position);
+    while (friendlyOccupied) {
+        uint64_t friendlyPosition = Utility::bitScanForward(friendlyOccupied);
+        attacks &= ~(rayAttacks[direction][friendlyPosition] | (1ULL << friendlyPosition));
+        Utility::clearBit(friendlyOccupied, friendlyPosition);
+    }
+    return attacks;
 }
 
-uint64_t getFileAttacks(uint64_t occupied, uint64_t position) {
-    return getRayAttacks(occupied, Direction::E, position) | getRayAttacks(occupied, Direction::W, position);
+// Friendly and opposition occupied attacks
+uint64_t getRankAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, uint64_t position) {
+    return getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::N, position) | getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::S, position);
 }
 
-uint64_t getDiagonalAttacks(uint64_t occupied, uint64_t position) {
-    return getRayAttacks(occupied, Direction::NE, position) | getRayAttacks(occupied, Direction::NW, position);
+uint64_t getFileAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, uint64_t position) {
+    return getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::E, position) | getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::W, position);
 }
 
-uint64_t getAntiDiagonalAttacks(uint64_t occupied, uint64_t position) {
-    return getRayAttacks(occupied, Direction::SE, position) | getRayAttacks(occupied, Direction::SW, position);
+uint64_t getDiagonalAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, uint64_t position) {
+    return getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::NE, position) | getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::NW, position);
+}
+
+uint64_t getAntiDiagonalAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, uint64_t position) {
+    return getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::SE, position) | getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::SW, position);
 }
 
 // Initialises rays, pawn and knight attack maps. Invoked once at engine start up.

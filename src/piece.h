@@ -1,5 +1,5 @@
 #include <string>
-#include "moveGeneration.h"
+#include "moveUtils.h"
 
 namespace AdiChess {
     
