@@ -3,7 +3,7 @@
 #include "board.h"
 #include "moveGenerator.h"
 
-int main(int argc, char *argv[]) {
+int main() {
     std::cout << "Let's play chess!\n";
 
     AdiChess::Board board;

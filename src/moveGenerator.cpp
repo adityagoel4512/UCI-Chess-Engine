@@ -8,7 +8,7 @@ namespace MoveGeneration {
         currentPlayer(board_.getCurrentPlayer()), 
         friendlyOccupied(board.getPositions(currentPlayer)),
         oppositionOccupied(board.getPositions(board_.getOpponent())) {
-        generateLegalMoves();
+        generatePseudoLegalMoves();
     }
 
 
@@ -25,14 +25,14 @@ namespace MoveGeneration {
 
     template<Piece::Type pieceType>
     void MoveGenerator::generateAttackMoves(uint64_t position) {
-        uint64_t attackedPositions = getAttackMap(position, pieceType);
+        uint64_t attackedPositions = board.getAttackMap(position, pieceType, friendlyOccupied, oppositionOccupied);
         while (attackedPositions) {
             uint64_t attackedPosition = Utility::bitScanForward(attackedPositions);
             moves.emplace_back(position, attackedPosition, Move::Flag::CAPTURE);
             Utility::clearBit(attackedPositions, attackedPosition);
         }
     }
-    
+
     // Specialisation for King to add consideration for castling
     template<>
     void MoveGenerator::generateMoves<Piece::Type::K>() {
@@ -48,7 +48,7 @@ namespace MoveGeneration {
         while (oppositionMap) {
             uint64_t oppositionPosition = Utility::bitScanForward(oppositionMap);
             oppositionAttacks |= oppositionPosition;
-            oppositionAttacks |= getAttackMap(position, board(oppositionPosition).type);
+            oppositionAttacks |= board.getAttackMap(position, board(oppositionPosition).type, friendlyOccupied, oppositionOccupied);
             Utility::clearBit(oppositionMap, oppositionPosition);
         }        
 
@@ -115,7 +115,7 @@ namespace MoveGeneration {
         while(positions) {
             uint64_t position = Utility::bitScanForward(positions);
             // Generates diagonal (non en-passant attacks from position)
-            uint64_t attackedPositions = getAttackMap(position, Piece::Type::P);
+            uint64_t attackedPositions = board.getAttackMap(position, Piece::Type::P, friendlyOccupied, oppositionOccupied);
             while (attackedPositions) {
                 uint64_t attackedPosition = Utility::bitScanForward(attackedPositions);
                 if (attackedPosition & promotionRank[currentPlayer]) {
@@ -152,29 +152,8 @@ namespace MoveGeneration {
             Utility::clearBit(positions, position);
         }
     }
-
-    uint64_t MoveGenerator::getAttackMap(uint64_t position, Piece::Type const pieceType) {
-        switch (pieceType) {
-            case Piece::Type::P:
-                return MoveGeneration::pawnAttacks[currentPlayer][position] & oppositionOccupied;
-            case Piece::Type::K:
-                return ((MoveGeneration::pawnAttacks[0][position] | MoveGeneration::pawnAttacks[1][position]) & ~friendlyOccupied) | MoveGeneration::getFileAttacks(friendlyOccupied, -1, position) | MoveGeneration::getRankAttacks(friendlyOccupied, -1, position);
-            case Piece::Type::N:   
-                return MoveGeneration::knightAttacks[position] & ~friendlyOccupied;
-            case Piece::Type::B:
-                return MoveGeneration::getDiagonalAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getAntiDiagonalAttacks(friendlyOccupied, oppositionOccupied, position);
-            case Piece::Type::R:
-                return MoveGeneration::getFileAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getRankAttacks(friendlyOccupied, oppositionOccupied, position);
-            case Piece::Type::Q:
-                return MoveGeneration::getDiagonalAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getAntiDiagonalAttacks(friendlyOccupied, oppositionOccupied, position) 
-                | MoveGeneration::getFileAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getRankAttacks(friendlyOccupied, oppositionOccupied, position);
-            default:
-                break;
-        }
-        return 0;
-    }
     
-    void MoveGenerator::generateLegalMoves() {
+    void MoveGenerator::generatePseudoLegalMoves() {
         generateMoves<Piece::Type::K>();
         generateMoves<Piece::Type::Q>();
         generateMoves<Piece::Type::R>();

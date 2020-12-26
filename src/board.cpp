@@ -10,11 +10,11 @@ namespace AdiChess {
         MoveGeneration::init();
     }
 
-    void Board::makeMove(Move &move) {
+    void Board::makeMove(Move const &move) {
         uint64_t source = move.getFrom();
         uint64_t target = move.getTo();
         auto flag = move.getFlag();
-        
+
         // Update en passant target square if double pawn push
         if (flag == Move::DOUBLE_PAWN_PUSH) {
             if (currentPlayer == Side::W) {
@@ -44,6 +44,66 @@ namespace AdiChess {
         std::swap(currentPlayer, opponent);
     }
 
+    bool Board::legalMove(Move const &move) {
+        uint64_t oppositionPositions = getPositions(opponent);
+        uint64_t friendlyPositions = getPositions(currentPlayer);
+        uint64_t oppositionAttacks = 0;
+        uint64_t oppositionBitMap = oppositionPositions;
+
+        while (oppositionBitMap) {
+            uint64_t oppositionPosition = Utility::bitScanForward(oppositionBitMap);
+            oppositionAttacks |= getAttackMap(oppositionPosition, (*this)(oppositionPosition).type, oppositionPositions, friendlyPositions);
+            Utility::clearBit(oppositionBitMap, oppositionPosition);
+        }
+        
+        return legalMove(move, oppositionAttacks, oppositionPositions, friendlyPositions);
+    }
+
+    bool Board::legalMove(Move const &move, uint64_t oppositionAttacks, uint64_t oppositionPositions, uint64_t friendlyPositions) {
+        uint64_t kingPosition = bitboards[static_cast<int>(Piece::Type::K)][currentPlayer];
+        uint64_t fromPosition = 1ULL << move.getFrom();
+        uint64_t toPosition = 1ULL << move.getTo();
+
+        // A king move is legal if and only if it does not move into check.
+        if (kingPosition == fromPosition)
+            return !(oppositionAttacks & toPosition);
+
+        // A non-king move is legal if and only if it is not pinned or it is moving along the ray towards or away from the king along 
+        // which it is being attacked. Note that a piece can only be pinned by a sliding piece.
+        if (!legalNonKingMove<Piece::Type::B>(oppositionPositions, friendlyPositions, fromPosition, toPosition, kingPosition))
+            return false;
+
+        if (!legalNonKingMove<Piece::Type::Q>(oppositionPositions, friendlyPositions, fromPosition, toPosition, kingPosition))
+            return false;
+
+        if (!legalNonKingMove<Piece::Type::R>(oppositionPositions, friendlyPositions, fromPosition, toPosition, kingPosition))
+            return false;
+
+        return true;        
+
+    }
+    
+    template <Piece::Type pieceType>
+    bool Board::legalNonKingMove(uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t fromPosition, uint64_t toPosition, uint64_t kingPosition) {
+        uint64_t enemySliderPositions = bitboards[static_cast<int>(pieceType)][opponent];
+        while (enemySliderPositions) {
+            uint64_t sliderPosition = Utility::bitScanForward(enemySliderPositions);
+            uint64_t attacks = getAttackMap(sliderPosition, pieceType, oppositionPositions, friendlyPositions & ~fromPosition);
+
+            // Check if moved piece was pinned.
+            if (attacks & kingPosition) {
+                // To be legal move piece must be moved along ray of attack.
+                if (getAttackMap(sliderPosition, pieceType, oppositionPositions, (friendlyPositions & ~fromPosition) | toPosition) & kingPosition) {
+                    return false;
+                }
+            }
+
+            Utility::clearBit(enemySliderPositions, sliderPosition);
+        }
+
+        return true;
+    }
+
     uint64_t Board::getPositions(Piece const &piece) const {
         return bitboards[static_cast<int>(piece.type)][piece.side];
     }
@@ -56,14 +116,12 @@ namespace AdiChess {
         return allPieces;
     }
 
-    // Assumes castling is permitted
     void Board::makeQueenSideCastle() {
         uint64_t kingLocation = currentPlayer == Side::B ? 0x0800000000000000 : 0x0000000000000080;
         movePiece(kingLocation, kingLocation << 2);
         movePiece(kingLocation << 4, kingLocation << 1);
     }
 
-    // Assumes castling is permitted
     void Board::makeKingSideCastle() {
         uint64_t kingLocation = currentPlayer == Side::B ? 0x0800000000000000 : 0x0000000000000080;
         movePiece(kingLocation, kingLocation >> 2);
@@ -90,6 +148,27 @@ namespace AdiChess {
         // Check if path for castling is clear and opposition does not attack castling path
         uint64_t clearPiecesMask = currentPlayer == Side::W ? 0x0000000000000070 : 0x7000000000000000;
         return !(oppostionAttacks & clearPiecesMask);
+    }
+
+    uint64_t Board::getAttackMap(uint64_t position, Piece::Type const pieceType, uint64_t friendlyOccupied, uint64_t oppositionOccupied) const {
+        switch (pieceType) {
+            case Piece::Type::P:
+                return MoveGeneration::pawnAttacks[currentPlayer][position] & oppositionOccupied;
+            case Piece::Type::K:
+                return ((MoveGeneration::pawnAttacks[0][position] | MoveGeneration::pawnAttacks[1][position]) & ~friendlyOccupied) | MoveGeneration::getFileAttacks(friendlyOccupied, -1, position) | MoveGeneration::getRankAttacks(friendlyOccupied, -1, position);
+            case Piece::Type::N:   
+                return MoveGeneration::knightAttacks[position] & ~friendlyOccupied;
+            case Piece::Type::B:
+                return MoveGeneration::getDiagonalAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getAntiDiagonalAttacks(friendlyOccupied, oppositionOccupied, position);
+            case Piece::Type::R:
+                return MoveGeneration::getFileAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getRankAttacks(friendlyOccupied, oppositionOccupied, position);
+            case Piece::Type::Q:
+                return MoveGeneration::getDiagonalAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getAntiDiagonalAttacks(friendlyOccupied, oppositionOccupied, position) 
+                | MoveGeneration::getFileAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getRankAttacks(friendlyOccupied, oppositionOccupied, position);
+            default:
+                break;
+        }
+        return 0;
     }
 
     Piece Board::operator()(int position) const {

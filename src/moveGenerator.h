@@ -38,8 +38,7 @@ private:
     template<Piece::Type> void generateAttackMoves(uint64_t position);
     template<Side> void generatePawnPushMove(uint64_t position, uint64_t freePositions);
 
-    uint64_t getAttackMap(uint64_t position, Piece::Type const pieceType);
-    void generateLegalMoves();
+    void generatePseudoLegalMoves();
 
     const Board board;
     const Side currentPlayer;
