@@ -12,7 +12,11 @@ int main() {
 
     for (auto move : moves) {
         std::cout << "From " << move.getFrom() << " to " << move.getTo() << "\n";
+        std::cout << board.legalMove(move) << "\n";
     }
+    AdiChess::Move move(3, 3+40, AdiChess::Move::Flag::QUIET_MOVE);
+    std::cout << board.legalMove(move) << "\n";
+    std::cout << board.getCurrentPlayer() << "\n";
     std::cout << moves.size() << '\n';
     return EXIT_SUCCESS;
 }

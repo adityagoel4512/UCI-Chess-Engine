@@ -44,23 +44,23 @@ namespace AdiChess {
         std::swap(currentPlayer, opponent);
     }
 
-    bool Board::legalMove(Move const &move) {
-        uint64_t oppositionPositions = getPositions(opponent);
+    bool Board::legalMove(Move const &move) const {
         uint64_t friendlyPositions = getPositions(currentPlayer);
         uint64_t oppositionAttacks = 0;
-        uint64_t oppositionBitMap = oppositionPositions;
+        uint64_t oppositionBitMap = getPositions(opponent);
 
         while (oppositionBitMap) {
             uint64_t oppositionPosition = Utility::bitScanForward(oppositionBitMap);
-            oppositionAttacks |= getAttackMap(oppositionPosition, (*this)(oppositionPosition).type, oppositionPositions, friendlyPositions);
+            uint64_t attack = getAttackMap(oppositionPosition, (*this)(oppositionPosition).type, getPositions(opponent), 0xFFFFFFFFFFFFFFFF, opponent);
+            oppositionAttacks |= attack;
             Utility::clearBit(oppositionBitMap, oppositionPosition);
         }
         
-        return legalMove(move, oppositionAttacks, oppositionPositions, friendlyPositions);
+        return legalMove(move, oppositionAttacks, getPositions(opponent), friendlyPositions);
     }
 
-    bool Board::legalMove(Move const &move, uint64_t oppositionAttacks, uint64_t oppositionPositions, uint64_t friendlyPositions) {
-        uint64_t kingPosition = bitboards[static_cast<int>(Piece::Type::K)][currentPlayer];
+    bool Board::legalMove(Move const &move, uint64_t oppositionAttacks, uint64_t oppositionPositions, uint64_t friendlyPositions) const {
+        uint64_t kingPosition = getPositions(Piece(Piece::Type::K, currentPlayer));
         uint64_t fromPosition = 1ULL << move.getFrom();
         uint64_t toPosition = 1ULL << move.getTo();
 
@@ -84,16 +84,16 @@ namespace AdiChess {
     }
     
     template <Piece::Type pieceType>
-    bool Board::legalNonKingMove(uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t fromPosition, uint64_t toPosition, uint64_t kingPosition) {
+    bool Board::legalNonKingMove(uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t fromPosition, uint64_t toPosition, uint64_t kingPosition) const {
         uint64_t enemySliderPositions = bitboards[static_cast<int>(pieceType)][opponent];
         while (enemySliderPositions) {
             uint64_t sliderPosition = Utility::bitScanForward(enemySliderPositions);
-            uint64_t attacks = getAttackMap(sliderPosition, pieceType, oppositionPositions, friendlyPositions & ~fromPosition);
+            uint64_t attacks = getAttackMap(sliderPosition, pieceType, oppositionPositions, friendlyPositions & ~fromPosition, opponent);
 
             // Check if moved piece was pinned.
             if (attacks & kingPosition) {
                 // To be legal move piece must be moved along ray of attack.
-                if (getAttackMap(sliderPosition, pieceType, oppositionPositions, (friendlyPositions & ~fromPosition) | toPosition) & kingPosition) {
+                if (getAttackMap(sliderPosition, pieceType, oppositionPositions, ((friendlyPositions & ~fromPosition) | toPosition), opponent) & kingPosition) {
                     return false;
                 }
             }
@@ -150,10 +150,10 @@ namespace AdiChess {
         return !(oppostionAttacks & clearPiecesMask);
     }
 
-    uint64_t Board::getAttackMap(uint64_t position, Piece::Type const pieceType, uint64_t friendlyOccupied, uint64_t oppositionOccupied) const {
+    uint64_t Board::getAttackMap(uint64_t position, Piece::Type const pieceType, uint64_t friendlyOccupied, uint64_t oppositionOccupied, Side const &side) const {
         switch (pieceType) {
             case Piece::Type::P:
-                return MoveGeneration::pawnAttacks[currentPlayer][position] & oppositionOccupied;
+                return MoveGeneration::pawnAttacks[side][position] & oppositionOccupied;
             case Piece::Type::K:
                 return ((MoveGeneration::pawnAttacks[0][position] | MoveGeneration::pawnAttacks[1][position]) & ~friendlyOccupied) | MoveGeneration::getFileAttacks(friendlyOccupied, -1, position) | MoveGeneration::getRankAttacks(friendlyOccupied, -1, position);
             case Piece::Type::N:   

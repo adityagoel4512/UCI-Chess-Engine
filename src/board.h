@@ -13,7 +13,7 @@ public:
     void operator()(int position, Piece const &piece);
 
     void makeMove(Move const &move);
-    bool legalMove(Move const &move);
+    bool legalMove(Move const &move) const;
 
     uint64_t getPositions(Piece const &piece) const;
     uint64_t getPositions(Side const &side) const;
@@ -21,8 +21,8 @@ public:
     bool canQueenSideCastle(uint64_t oppostionAttacks) const;
     bool canKingSideCastle(uint64_t oppostionAttacks) const;
 
-    uint64_t getAttackMap(uint64_t position, Piece::Type const pieceType, uint64_t friendlyOccupied, uint64_t oppositionOccupied) const;
-    bool legalMove(Move const &move, uint64_t oppositionAttacks, uint64_t oppositionPositions, uint64_t friendlyPositions);
+    uint64_t getAttackMap(uint64_t position, Piece::Type const pieceType, uint64_t friendlyOccupied, uint64_t oppositionOccupied, Side const &side) const;
+    bool legalMove(Move const &move, uint64_t oppositionAttacks, uint64_t oppositionPositions, uint64_t friendlyPositions) const;
 
     Side getCurrentPlayer() const {
         return currentPlayer;
@@ -70,7 +70,7 @@ private:
     void makeKingSideCastle();
 
     template<Piece::Type pieceType> 
-    bool legalNonKingMove(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+    bool legalNonKingMove(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t) const;
 
     Piece operator() (int i, int j) const;
     void operator()(int i, int j, Piece const &piece);

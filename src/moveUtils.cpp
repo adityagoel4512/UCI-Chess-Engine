@@ -38,11 +38,11 @@ uint64_t getRayAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, D
 
 // Friendly and opposition occupied attacks
 uint64_t getRankAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, uint64_t position) {
-    return getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::N, position) | getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::S, position);
+    return getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::E, position) | getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::W, position);
 }
 
 uint64_t getFileAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, uint64_t position) {
-    return getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::E, position) | getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::W, position);
+    return getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::N, position) | getRayAttacks(friendlyOccupied, oppositionOccupied, Direction::S, position);
 }
 
 uint64_t getDiagonalAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, uint64_t position) {
@@ -61,7 +61,7 @@ void init() {
         rayAttacks[Direction::S][position] = 0x0080808080808080ULL >> (63 - position);
         uint8_t bitsRight = position % 8ULL;
         rayAttacks[Direction::E][position] = ((1ULL << bitsRight) - 1ULL) << (position - bitsRight);
-        rayAttacks[Direction::W][position] = position == 64 ? 0 : ((1ULL << 7) - bitsRight - 1ULL) << (position + 1);
+        rayAttacks[Direction::W][position] = position == 63 ? 0 : ((1ULL << 7) - bitsRight - 1ULL) << (position + 1);
         rayAttacks[Direction::NE][position] = eastN(0x102040810204000ULL, 7ULL - Utility::getCol(position)) << (Utility::getRow(position) << 3);
         rayAttacks[Direction::NW][position] = westN(0x8040201008040200ULL, Utility::getCol(position)) << (Utility::getRow(position) << 3);
         rayAttacks[Direction::SE][position] = eastN(0x40201008040201ULL, 7ULL - Utility::getCol(position)) >> ((7ULL - Utility::getRow(position)) << 3);

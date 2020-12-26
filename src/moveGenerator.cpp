@@ -25,7 +25,7 @@ namespace MoveGeneration {
 
     template<Piece::Type pieceType>
     void MoveGenerator::generateAttackMoves(uint64_t position) {
-        uint64_t attackedPositions = board.getAttackMap(position, pieceType, friendlyOccupied, oppositionOccupied);
+        uint64_t attackedPositions = board.getAttackMap(position, pieceType, friendlyOccupied, oppositionOccupied, currentPlayer);
         while (attackedPositions) {
             uint64_t attackedPosition = Utility::bitScanForward(attackedPositions);
             moves.emplace_back(position, attackedPosition, Move::Flag::CAPTURE);
@@ -48,7 +48,7 @@ namespace MoveGeneration {
         while (oppositionMap) {
             uint64_t oppositionPosition = Utility::bitScanForward(oppositionMap);
             oppositionAttacks |= oppositionPosition;
-            oppositionAttacks |= board.getAttackMap(position, board(oppositionPosition).type, friendlyOccupied, oppositionOccupied);
+            oppositionAttacks |= board.getAttackMap(position, board(oppositionPosition).type, friendlyOccupied, oppositionOccupied, currentPlayer);
             Utility::clearBit(oppositionMap, oppositionPosition);
         }        
 
@@ -115,7 +115,7 @@ namespace MoveGeneration {
         while(positions) {
             uint64_t position = Utility::bitScanForward(positions);
             // Generates diagonal (non en-passant attacks from position)
-            uint64_t attackedPositions = board.getAttackMap(position, Piece::Type::P, friendlyOccupied, oppositionOccupied);
+            uint64_t attackedPositions = board.getAttackMap(position, Piece::Type::P, friendlyOccupied, oppositionOccupied, currentPlayer);
             while (attackedPositions) {
                 uint64_t attackedPosition = Utility::bitScanForward(attackedPositions);
                 if (attackedPosition & promotionRank[currentPlayer]) {
