@@ -44,23 +44,29 @@ namespace AdiChess {
         std::swap(currentPlayer, opponent);
     }
 
-    bool Board::legalMove(Move const &move) const {
+    bool Board::legalMove(Move const &move) {
         uint64_t friendlyPositions = getPositions(currentPlayer);
         uint64_t oppositionAttacks = 0;
-        uint64_t oppositionBitMap = getPositions(opponent);
+        uint64_t oppositionPositions = getPositions(opponent);
+        uint64_t nonKingFriendlyPositions = friendlyPositions & ~getPositions(Piece(Piece::Type::K, currentPlayer));
 
-        while (oppositionBitMap) {
-            uint64_t oppositionPosition = Utility::bitScanForward(oppositionBitMap);
-            uint64_t attack = getAttackMap(oppositionPosition, (*this)(oppositionPosition).type, getPositions(opponent), 0xFFFFFFFFFFFFFFFF, opponent);
-            oppositionAttacks |= attack;
-            Utility::clearBit(oppositionBitMap, oppositionPosition);
+        while (oppositionPositions) {
+            uint64_t oppositionPosition = Utility::bitScanForward(oppositionPositions);
+            oppositionAttacks |= MoveGeneration::pawnAttacks[opponent][oppositionPosition] | getAttackMap(oppositionPosition, (*this)(oppositionPosition).type, getPositions(opponent), nonKingFriendlyPositions, opponent);
+            Utility::clearBit(oppositionPositions, oppositionPosition);
         }
         
         return legalMove(move, oppositionAttacks, getPositions(opponent), friendlyPositions);
     }
 
-    bool Board::legalMove(Move const &move, uint64_t oppositionAttacks, uint64_t oppositionPositions, uint64_t friendlyPositions) const {
+    bool Board::legalMove(Move const &move, uint64_t oppositionAttacks, uint64_t oppositionPositions, uint64_t friendlyPositions) {
+
         uint64_t kingPosition = getPositions(Piece(Piece::Type::K, currentPlayer));
+
+        if (move.getFlag() == Move::Flag::EN_PASSANT_CAPTURE) {
+            return legalEnPassantMove(move, oppositionPositions, friendlyPositions, kingPosition);
+        }
+
         uint64_t fromPosition = 1ULL << move.getFrom();
         uint64_t toPosition = 1ULL << move.getTo();
 
@@ -86,16 +92,19 @@ namespace AdiChess {
     template <Piece::Type pieceType>
     bool Board::legalNonKingMove(uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t fromPosition, uint64_t toPosition, uint64_t kingPosition) const {
         uint64_t enemySliderPositions = bitboards[static_cast<int>(pieceType)][opponent];
+
         while (enemySliderPositions) {
             uint64_t sliderPosition = Utility::bitScanForward(enemySliderPositions);
             uint64_t attacks = getAttackMap(sliderPosition, pieceType, oppositionPositions, friendlyPositions & ~fromPosition, opponent);
 
-            // Check if moved piece was pinned.
+            // Check if piece to be moved is pinned.
             if (attacks & kingPosition) {
-                // To be legal move piece must be moved along ray of attack.
-                if (getAttackMap(sliderPosition, pieceType, oppositionPositions, ((friendlyPositions & ~fromPosition) | toPosition), opponent) & kingPosition) {
+                // To be legal move the pinned piece must be moved along ray of attack.
+                // Computes attack map from king position. Intersection with attack map from source of slider corresponds to sliding attack ray.
+                // Sliding attack ray may include some extra bits behind the sliderPosition
+                uint64_t attackRay = attacks & getAttackMap(kingPosition, pieceType, oppositionPositions, friendlyPositions & ~fromPosition, opponent);
+                if (!(attackRay & toPosition))
                     return false;
-                }
             }
 
             Utility::clearBit(enemySliderPositions, sliderPosition);
@@ -104,6 +113,21 @@ namespace AdiChess {
         return true;
     }
 
+    bool Board::legalEnPassantMove(Move const &move, uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t kingPosition) {
+        // En passant captures are infrequent enough that we can check their legality by making the move and seeing if king is left in check
+        makeMove(move);
+        uint64_t oppositionPositionsCopy = oppositionPositions;
+        while (oppositionPositions) {
+            uint64_t oppositionPosition = Utility::bitScanForward(oppositionPositions);
+            if (getAttackMap(oppositionPosition, (*this)(oppositionPosition).type, oppositionPositionsCopy, friendlyPositions, opponent) & kingPosition) {
+                // unmake move
+                return false;
+            }
+            Utility::clearBit(oppositionPositions, oppositionPosition);
+        }
+        // unmake move
+        return true;
+    }
     uint64_t Board::getPositions(Piece const &piece) const {
         return bitboards[static_cast<int>(piece.type)][piece.side];
     }
@@ -117,15 +141,15 @@ namespace AdiChess {
     }
 
     void Board::makeQueenSideCastle() {
-        uint64_t kingLocation = currentPlayer == Side::B ? 0x0800000000000000 : 0x0000000000000080;
-        movePiece(kingLocation, kingLocation << 2);
-        movePiece(kingLocation << 4, kingLocation << 1);
+        uint64_t kingLocation = currentPlayer == Side::B ? 59 : 3;
+        movePiece(kingLocation, kingLocation + 2);
+        movePiece(kingLocation + 4, kingLocation + 1);
     }
 
     void Board::makeKingSideCastle() {
-        uint64_t kingLocation = currentPlayer == Side::B ? 0x0800000000000000 : 0x0000000000000080;
-        movePiece(kingLocation, kingLocation >> 2);
-        movePiece(kingLocation >> 3, kingLocation >> 1);
+        uint64_t kingLocation = currentPlayer == Side::B ? 59 : 3;
+        movePiece(kingLocation, kingLocation - 2);
+        movePiece(kingLocation - 3, kingLocation - 1);
     }
 
     bool Board::canKingSideCastle(uint64_t oppostionAttacks) const {
@@ -255,19 +279,21 @@ namespace AdiChess {
         std::string token;
         std::stringstream ss(fenString);
 
-        // Parse board into bitboard        
+        // Parse board into bitboard    
+
+        int position = 63;    
         for (int i = 0; i < 8; ++i) {
             if (i == 8) {
                 ss >> token;
             } else {
                 std::getline(ss, token, '/');
             }
-            int j = 0;
-            while (j < 8) {
+            int offset = 0;
+            for (int j = 0; j < 8-offset; ++j) {
                 if (token[j] <= '8' && token[j] >= '1') {
-                    j+=token[j]-'0';
+                    position -= token[j]-'0';
+                    offset += token[j]-'1';
                 } else {
-                    int position = Utility::flattenCoordinates(i, j);
                     switch (token[j]) {
                         case 'K':
                             Utility::setBit(bitboards[0][0], position);
@@ -306,7 +332,7 @@ namespace AdiChess {
                             Utility::setBit(bitboards[5][1], position);
                             break;
                     }
-                    ++j;
+                    position--;
                 }
             }
         }
