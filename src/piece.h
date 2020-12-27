@@ -17,8 +17,6 @@ namespace AdiChess {
         Side side;
         
         Piece(Type const &type_, Side const &side_): type(type_), side(side_) {}
-
-        uint64_t getAttackMap(uint64_t position, uint64_t occupied);
         
         friend std::ostream &operator<<(std::ostream &os, Piece const &piece) {
             switch (piece.type) {

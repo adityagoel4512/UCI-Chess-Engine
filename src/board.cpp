@@ -11,6 +11,10 @@ namespace AdiChess {
     }
 
     void Board::makeMove(Move const &move) {
+        
+        // Clone irreversible state
+        updateState();
+
         uint64_t source = move.getFrom();
         uint64_t target = move.getTo();
         auto flag = move.getFlag();
@@ -18,9 +22,9 @@ namespace AdiChess {
         // Update en passant target square if double pawn push
         if (flag == Move::DOUBLE_PAWN_PUSH) {
             if (currentPlayer == Side::W) {
-                enPassantTarget = target >> 8;
+                state->enPassantTarget = target - 8;
             } else {
-                enPassantTarget = target << 8;
+                state->enPassantTarget = target + 8;
             }
         }
         
@@ -36,12 +40,65 @@ namespace AdiChess {
 
         makePromotion(move);
 
-        ++halfMoveClock;
+        
         if (currentPlayer == Side::B) {
-            ++fullMoveNumber;
+            ++(state->fullMoveNumber);
         }
 
         std::swap(currentPlayer, opponent);
+    }
+
+    // Must be move corresponding to the current state
+    void Board::unmakeMove(Move const &move) {
+        auto flag = move.getFlag();
+        uint64_t toPosition = move.getTo();
+        uint64_t fromPosition = move.getFrom();
+        
+        // Rollback promotions on bitboards
+        if (move.isPromotion()) {
+            switch (flag) {
+                case Move::Flag::BISHOP_PROMOTION:
+                    clearPiece(toPosition, Piece(Piece::Type::B, currentPlayer));
+                    break;
+                case Move::Flag::ROOK_PROMOTION:
+                    clearPiece(toPosition, Piece(Piece::Type::R, currentPlayer));
+                    break;
+                case Move::Flag::KNIGHT_PROMOTION:
+                    clearPiece(toPosition, Piece(Piece::Type::N, currentPlayer));
+                    break;
+                case Move::Flag::QUEEN_PROMOTION:
+                    clearPiece(toPosition, Piece(Piece::Type::Q, currentPlayer));
+                    break;
+            }
+            (*this)(fromPosition, Piece(Piece::Type::P, currentPlayer));
+        }
+
+        // Rollback captures on bitboards
+        if (move.isCapture()) {
+            uint64_t restorePosition = flag == Move::Flag::EN_PASSANT_CAPTURE ? state->enPassantTarget : toPosition;
+            (*this)(restorePosition, state->capturedPiece);
+        }
+        
+
+        // Rollback castling move on bitboards
+        if (flag == Move::Flag::KING_CASTLE) {
+            bitboards[static_cast<int>(Piece::Type::K)][currentPlayer] = currentPlayer == Side::W ? 3ULL : 59ULL;
+            bitboards[static_cast<int>(Piece::Type::R)][currentPlayer] = currentPlayer == Side::W ? 0ULL : 56ULL;
+        } else if (flag == Move::Flag::QUEEN_CASTLE) {
+            bitboards[static_cast<int>(Piece::Type::K)][currentPlayer] = currentPlayer == Side::B ? 3ULL : 59ULL;
+            bitboards[static_cast<int>(Piece::Type::R)][currentPlayer] = currentPlayer == Side::W ? 7ULL : 63ULL;
+        }
+
+        if (flag == Move::QUIET_MOVE) {
+            auto movedPiece = (*this)(toPosition);
+            clearPiece(toPosition, movedPiece);
+            (*this)(fromPosition, movedPiece);
+        }
+
+        // Reload old state information
+        state = state->prev;
+        std::swap(currentPlayer, opponent);
+
     }
 
     bool Board::legalMove(Move const &move) {
@@ -62,10 +119,15 @@ namespace AdiChess {
     bool Board::legalMove(Move const &move, uint64_t oppositionAttacks, uint64_t oppositionPositions, uint64_t friendlyPositions) {
 
         uint64_t kingPosition = getPositions(Piece(Piece::Type::K, currentPlayer));
-
-        if (move.getFlag() == Move::Flag::EN_PASSANT_CAPTURE) {
-            return legalEnPassantMove(move, oppositionPositions, friendlyPositions, kingPosition);
-        }
+        auto flag = move.getFlag();
+        switch (move.getFlag()) {
+            case Move::Flag::EN_PASSANT_CAPTURE:
+                return legalEnPassantMove(move, oppositionPositions, friendlyPositions, kingPosition);
+            case Move::Flag::KING_CASTLE:
+                return oppositionAttacks & (currentPlayer == Side::W ? 0xE : 0x0E00000000000000);
+            case Move::Flag::QUEEN_CASTLE:
+                return oppositionAttacks & (currentPlayer == Side::W ? 0x78 : 0x7800000000000000);
+        }            
 
         uint64_t fromPosition = 1ULL << move.getFrom();
         uint64_t toPosition = 1ULL << move.getTo();
@@ -144,34 +206,40 @@ namespace AdiChess {
         uint64_t kingLocation = currentPlayer == Side::B ? 59 : 3;
         movePiece(kingLocation, kingLocation + 2);
         movePiece(kingLocation + 4, kingLocation + 1);
+        ++(state->halfMoveClock);
     }
 
     void Board::makeKingSideCastle() {
         uint64_t kingLocation = currentPlayer == Side::B ? 59 : 3;
         movePiece(kingLocation, kingLocation - 2);
         movePiece(kingLocation - 3, kingLocation - 1);
+        ++(state->halfMoveClock);
     }
 
-    bool Board::canKingSideCastle(uint64_t oppostionAttacks) const {
+    bool Board::canKingSideCastle(uint64_t occupiedPositions) const {
         // Check if castling flags permit castling
-        bool castleLegal = (castlingRights >> (2 * currentPlayer)) & 0b10;
+        bool castleLegal = (state->castlingRights >> (2 * currentPlayer)) & 0b10;
         if (!castleLegal)
             return false;
-        
-        // Check if path for castling is clear and opposition does not attack castling path
+
+        // Check if path for castling is clear. Attacks checked during legality of move check.
         uint64_t clearPiecesMask = currentPlayer == Side::W ? 0x0000000000000006 : 0x0600000000000000;
-        return !(oppostionAttacks & clearPiecesMask);
+        return !(occupiedPositions & clearPiecesMask);
     }
 
-    bool Board::canQueenSideCastle(uint64_t oppostionAttacks) const {
+    bool Board::canQueenSideCastle(uint64_t occupiedPositions) const {
         // Check if castling flags permit castling
-        bool castleLegal = (castlingRights >> (2 * currentPlayer)) & 0b1;
+        bool castleLegal = (state->castlingRights >> (2 * currentPlayer)) & 0b1;
         if (!castleLegal)
             return false;
 
-        // Check if path for castling is clear and opposition does not attack castling path
+        // Check if path for castling is clear. Attacks checked during legality of move check.
         uint64_t clearPiecesMask = currentPlayer == Side::W ? 0x0000000000000070 : 0x7000000000000000;
-        return !(oppostionAttacks & clearPiecesMask);
+        return !(occupiedPositions & clearPiecesMask);
+    }
+
+    void Board::updateState() {
+        state = std::make_shared<StateInfo>(state->halfMoveClock, state->fullMoveNumber, state->enPassantTarget, state->castlingRights, state);
     }
 
     uint64_t Board::getAttackMap(uint64_t position, Piece::Type const pieceType, uint64_t friendlyOccupied, uint64_t oppositionOccupied, Side const &side) const {
@@ -211,13 +279,19 @@ namespace AdiChess {
 
         // Update castling bits
         if (piece.type == Piece::Type::K) {
-            castlingRights &= ~(0b11 << (2 * currentPlayer));
+            state->castlingRights &= ~(0b11 << (2 * currentPlayer));
         } else if (piece.type == Piece::Type::R) {
             if (from & MoveGeneration::fileA) {
-                castlingRights &= ~(0b1 << (2 * currentPlayer));
+                state->castlingRights &= ~(0b1 << (2 * currentPlayer));
             } else if (from & MoveGeneration::fileH) {
-                castlingRights &= ~(0b10 << (2 * currentPlayer));
+                state->castlingRights &= ~(0b10 << (2 * currentPlayer));
             }
+        } 
+
+        if (piece.type == Piece::Type::P) {
+            state->halfMoveClock = 0;
+        } else {
+            ++(state->halfMoveClock);
         }
 
         clearPiece(from, piece);
@@ -226,14 +300,24 @@ namespace AdiChess {
 
     void Board::makeCapture(Move const &move) {
         auto moveFlag = move.getFlag();
+        uint64_t source = move.getFrom();
+        uint64_t target = move.getTo();
 
         if (moveFlag == Move::Flag::EN_PASSANT_CAPTURE) {
-            clearPiece(enPassantTarget, (*this)(enPassantTarget));
+            Piece capturePiece = (*this)(state->enPassantTarget);
+            clearPiece(state->enPassantTarget, capturePiece);
+            state->capturedPiece = capturePiece;
         } else {
-            clearPiece(move.getTo(), (*this)(move.getTo()));
+            Piece capturePiece = (*this)(target);
+            clearPiece(target, capturePiece);
+            state->capturedPiece = capturePiece;
         }
 
-        movePiece(move.getFrom(), move.getTo());
+        auto piece = (*this)(source);
+        clearPiece(source, piece);
+        (*this)(target, piece);
+
+        state->halfMoveClock = 0;
     }
 
     void Board::makePromotion(Move const &move) {
@@ -344,9 +428,8 @@ namespace AdiChess {
         currentPlayer = token == "w" ? Side::W : Side::B;
         opponent = token == "w" ? Side::B : Side::W;
 
-
         ss >> token;
-
+        uint8_t castlingRights = 0;
         // Castling rights [Black King Side, Black Queen Side, White King Side, White Queen Side]
         if (token != "-") {
             for (char c : token) {
@@ -362,14 +445,19 @@ namespace AdiChess {
         }
 
         ss >> token;
+
+        uint64_t enPassantTarget = -1;
+
         // En passant target square
         if (token != "-") {
             enPassantTarget = Utility::flattenCoordinates(token[0]-'a', token[1]-'0');
-        }        
+        } 
 
         ss >> token;
-        halfMoveClock = std::stoi(token);
+        int halfMoveClock = std::stoi(token);
         ss >> token;
-        fullMoveNumber = std::stoi(token);
+        int fullMoveNumber = std::stoi(token);
+
+        state = std::make_shared<StateInfo>(halfMoveClock, fullMoveNumber, enPassantTarget, castlingRights, nullptr);
     }   
 }

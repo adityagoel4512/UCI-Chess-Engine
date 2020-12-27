@@ -28,7 +28,11 @@ namespace MoveGeneration {
         uint64_t attackedPositions = board.getAttackMap(position, pieceType, friendlyOccupied, oppositionOccupied, currentPlayer);
         while (attackedPositions) {
             uint64_t attackedPosition = Utility::bitScanForward(attackedPositions);
-            moves.emplace_back(position, attackedPosition, Move::Flag::CAPTURE);
+            if (oppositionOccupied & attackedPosition) {
+                moves.emplace_back(position, attackedPosition, Move::Flag::CAPTURE);
+            } else {
+                moves.emplace_back(position, attackedPosition, Move::Flag::QUIET_MOVE);
+            }
             Utility::clearBit(attackedPositions, attackedPosition);
         }
     }
@@ -41,22 +45,12 @@ namespace MoveGeneration {
         // Generates all non-castling moves
         generateAttackMoves<Piece::Type::K>(position);
 
-        // Generates castling moves
-        uint64_t oppositionMap = oppositionOccupied;
-        uint64_t oppositionAttacks = 0;
-
-        while (oppositionMap) {
-            uint64_t oppositionPosition = Utility::bitScanForward(oppositionMap);
-            oppositionAttacks |= oppositionPosition;
-            oppositionAttacks |= board.getAttackMap(position, board(oppositionPosition).type, friendlyOccupied, oppositionOccupied, currentPlayer);
-            Utility::clearBit(oppositionMap, oppositionPosition);
-        }        
-
-        if (board.canKingSideCastle(oppositionAttacks)) {
+        // Generates pseudo legal castling moves
+        if (board.canKingSideCastle(oppositionOccupied | friendlyOccupied)) {
             moves.emplace_back(0, 0, Move::Flag::KING_CASTLE);
         }
 
-        if (board.canQueenSideCastle(oppositionAttacks)) {
+        if (board.canQueenSideCastle(oppositionOccupied | friendlyOccupied)) {
             moves.emplace_back(0, 0, Move::Flag::QUEEN_CASTLE);
         }
     }
@@ -66,7 +60,7 @@ namespace MoveGeneration {
         // Single pawn push
         uint64_t pawnBitMap = 1ULL << pawnPosition;
         uint64_t singlePawnPush = pawnBitMap >> 8;
-        if (singlePawnPush & rank8) {
+        if (singlePawnPush & rank1) {
             uint64_t singlePawnPushPosition = pawnPosition-8;
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::KNIGHT_PROMOTION);
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::BISHOP_PROMOTION);
@@ -76,7 +70,7 @@ namespace MoveGeneration {
             uint64_t singlePawnPushPosition = pawnPosition-8;
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::QUIET_MOVE);
             // Double pawn push
-            uint64_t doublePawnPush = (singlePawnPush << 8) & rank4 & freePositions;
+            uint64_t doublePawnPush = (singlePawnPush >> 8) & rank5 & freePositions;
             if (doublePawnPush) {
                 moves.emplace_back(pawnPosition, singlePawnPushPosition-8, Move::Flag::DOUBLE_PAWN_PUSH);
             }

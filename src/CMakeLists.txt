@@ -1,3 +1,3 @@
-add_compile_options(-mpopcnt  -O3)
+add_compile_options(-mpopcnt)
 
-add_executable(AdiChess main.cpp board.cpp moveUtils.cpp piece.cpp move.cpp moveGenerator.cpp)
+add_executable(AdiChess main.cpp board.cpp moveUtils.cpp move.cpp moveGenerator.cpp)

@@ -2,7 +2,23 @@
 
 #include "piece.h"
 
+#include <stack>
+#include <memory>
+
 namespace AdiChess {
+
+struct StateInfo {
+
+    StateInfo(int halfMoveClock_, int fullMoveNumber_, uint64_t enPassantTarget_, uint8_t castlingRights_, std::shared_ptr<StateInfo> prev_): 
+    halfMoveClock(halfMoveClock_), fullMoveNumber(fullMoveNumber_), enPassantTarget(enPassantTarget_), castlingRights(castlingRights_), prev(prev_) {}
+
+    int halfMoveClock = 0;
+    int fullMoveNumber = 0;
+    uint64_t enPassantTarget;
+    uint8_t castlingRights = 0;
+    std::shared_ptr<StateInfo> prev;
+    Piece capturedPiece = Piece(Piece::Type::NONE, Side::NONE);
+};
 
 class Board {
 
@@ -13,13 +29,14 @@ public:
     void operator()(int position, Piece const &piece);
 
     void makeMove(Move const &move);
+    void unmakeMove(Move const &move);
     bool legalMove(Move const &move);
 
     uint64_t getPositions(Piece const &piece) const;
     uint64_t getPositions(Side const &side) const;
 
-    bool canQueenSideCastle(uint64_t oppostionAttacks) const;
-    bool canKingSideCastle(uint64_t oppostionAttacks) const;
+    bool canQueenSideCastle(uint64_t occupiedPositions) const;
+    bool canKingSideCastle(uint64_t occupiedPositions) const;
 
     uint64_t getAttackMap(uint64_t position, Piece::Type const pieceType, uint64_t friendlyOccupied, uint64_t oppositionOccupied, Side const &side) const;
 
@@ -34,11 +51,11 @@ public:
     }
 
     bool validEnPassant(uint64_t position) const {
-        return position == enPassantTarget;
+        return position == state->enPassantTarget;
     }
 
     friend std::ostream &operator<<(std::ostream &os, Board const &board) {
-        os << std::string("Full moves: ") << std::to_string(board.fullMoveNumber) << std::string("\n");
+        os << std::string("Full moves: ") << std::to_string(board.state->fullMoveNumber) << std::string("\n");
         os << std::string("Side to move: ");
 
         if (board.currentPlayer == Side::W) {
@@ -70,9 +87,10 @@ private:
     void makeQueenSideCastle();
     void makeKingSideCastle();
 
-    template<Piece::Type pieceType> 
-    bool legalNonKingMove(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t) const;
+    template<Piece::Type> bool legalNonKingMove(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t) const;
     bool legalEnPassantMove(Move const &move, uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t kingPosition);
+
+    void updateState();
 
     Piece operator() (int i, int j) const;
     void operator()(int i, int j, Piece const &piece);
@@ -80,12 +98,11 @@ private:
     void parseFenString(std::string const &fenString);
 
     uint64_t bitboards[6][2] = {0};
-    uint8_t castlingRights = 0;
-    int halfMoveClock = 0;
-    int fullMoveNumber = 0;
-    uint64_t enPassantTarget = -1;
     Side currentPlayer;
     Side opponent;
+
+    // StateInfo is allocated on free store for now.
+    std::shared_ptr<StateInfo> state;
 };
 
 }
