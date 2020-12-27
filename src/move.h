@@ -28,9 +28,7 @@ public:
     uint64_t getFrom() const;
     uint64_t getFlag() const;
     bool isCapture() const;
-    bool isPromotion() const {
-        return getFlag() >= KNIGHT_PROMOTION;
-    }
+    bool isPromotion() const;
 
     bool operator==(Move const &other) {
         return move == other.move;

@@ -21,4 +21,8 @@ namespace AdiChess {
         return flags == Flag::CAPTURE || flags == Flag::EN_PASSANT_CAPTURE || (flags <= Flag::QUEEN_PROMO_CAPTURE && flags >= Flag::KNIGHT_PROMO_CAPTURE);
     }
 
+    bool Move::isPromotion() const {
+        return getFlag() >= KNIGHT_PROMOTION;
+    }
+
 }
