@@ -182,12 +182,12 @@ namespace AdiChess {
         while (oppositionPositions) {
             uint64_t oppositionPosition = Utility::bitScanForward(oppositionPositions);
             if (getAttackMap(oppositionPosition, (*this)(oppositionPosition).type, oppositionPositionsCopy, friendlyPositions, opponent) & kingPosition) {
-                // unmake move
+                unmakeMove(move);
                 return false;
             }
             Utility::clearBit(oppositionPositions, oppositionPosition);
         }
-        // unmake move
+        unmakeMove(move);
         return true;
     }
     uint64_t Board::getPositions(Piece const &piece) const {
