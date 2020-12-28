@@ -9,8 +9,8 @@ namespace AdiChess {
 
 struct StateInfo {
 
-    StateInfo(int halfMoveClock_, int fullMoveNumber_, uint64_t enPassantTarget_, uint8_t castlingRights_, std::shared_ptr<StateInfo> prev_): 
-    halfMoveClock(halfMoveClock_), fullMoveNumber(fullMoveNumber_), enPassantTarget(enPassantTarget_), castlingRights(castlingRights_), prev(prev_) {}
+    StateInfo(int halfMoveClock_, int fullMoveNumber_, uint64_t enPassantTarget_, uint8_t castlingRights_, std::shared_ptr<StateInfo> prev_, std::string descr_= ""): 
+    halfMoveClock(halfMoveClock_), fullMoveNumber(fullMoveNumber_), enPassantTarget(enPassantTarget_), castlingRights(castlingRights_), prev(prev_), descr(descr_) {}
 
     int halfMoveClock = 0;
     int fullMoveNumber = 0;
@@ -18,6 +18,7 @@ struct StateInfo {
     uint8_t castlingRights = 0;
     std::shared_ptr<StateInfo> prev;
     Piece capturedPiece = Piece(Piece::Type::NONE, Side::NONE);
+    std::string descr;
 };
 
 class Board {
@@ -55,6 +56,7 @@ public:
     }
 
     friend std::ostream &operator<<(std::ostream &os, Board const &board) {
+        os << std::string("Description: ") << board.state->descr << std::string("\n");
         os << std::string("Full moves: ") << std::to_string(board.state->fullMoveNumber) << std::string("\n");
         os << std::string("Side to move: ");
 

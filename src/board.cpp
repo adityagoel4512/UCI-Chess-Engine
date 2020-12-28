@@ -18,6 +18,7 @@ namespace AdiChess {
         uint64_t source = move.getFrom();
         uint64_t target = move.getTo();
         auto flag = move.getFlag();
+        state->descr += "piece " + std::to_string(static_cast<int>((*this)(source).type)) + " from " + MoveGeneration::positionToString(source) + " to " +  MoveGeneration::positionToString(target) + ", ";
 
         // Update en passant target square if double pawn push
         if (flag == Move::DOUBLE_PAWN_PUSH) {
@@ -26,6 +27,8 @@ namespace AdiChess {
             } else {
                 state->enPassantTarget = target + 8;
             }
+        } else {
+            state->enPassantTarget = -1;
         }
         
         if (move.isCapture()) {
@@ -75,6 +78,9 @@ namespace AdiChess {
 
         // Rollback captures on bitboards
         if (move.isCapture()) {
+            auto movedPiece = (*this)(toPosition);
+            clearPiece(toPosition, movedPiece);
+            (*this)(fromPosition, movedPiece);
             uint64_t restorePosition = flag == Move::Flag::EN_PASSANT_CAPTURE ? state->enPassantTarget : toPosition;
             (*this)(restorePosition, state->capturedPiece);
         }
@@ -82,18 +88,19 @@ namespace AdiChess {
 
         // Rollback castling move on bitboards
         if (flag == Move::Flag::KING_CASTLE) {
-            bitboards[static_cast<int>(Piece::Type::K)][currentPlayer] = currentPlayer == Side::W ? 3ULL : 59ULL;
-            bitboards[static_cast<int>(Piece::Type::R)][currentPlayer] = currentPlayer == Side::W ? 0ULL : 56ULL;
+            bitboards[static_cast<int>(Piece::Type::K)][currentPlayer] = 1ULL << (currentPlayer == Side::W ? 3 : 59);
+            bitboards[static_cast<int>(Piece::Type::R)][currentPlayer] = 1ULL << (currentPlayer == Side::W ? 0 : 56);
         } else if (flag == Move::Flag::QUEEN_CASTLE) {
-            bitboards[static_cast<int>(Piece::Type::K)][currentPlayer] = currentPlayer == Side::B ? 3ULL : 59ULL;
-            bitboards[static_cast<int>(Piece::Type::R)][currentPlayer] = currentPlayer == Side::W ? 7ULL : 63ULL;
+            bitboards[static_cast<int>(Piece::Type::K)][currentPlayer] = 1ULL << (currentPlayer == Side::B ? 3 : 59);
+            bitboards[static_cast<int>(Piece::Type::R)][currentPlayer] = 1ULL << (currentPlayer == Side::W ? 7 : 63);
         }
 
-        if (flag == Move::QUIET_MOVE) {
+        // Rollback null moves
+        if (flag == Move::QUIET_MOVE || flag == Move::DOUBLE_PAWN_PUSH) {
             auto movedPiece = (*this)(toPosition);
             clearPiece(toPosition, movedPiece);
             (*this)(fromPosition, movedPiece);
-        }
+        } 
 
         // Reload old state information
         state = state->prev;
@@ -155,16 +162,18 @@ namespace AdiChess {
     bool Board::legalNonKingMove(uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t fromPosition, uint64_t toPosition, uint64_t kingPosition) const {
         uint64_t enemySliderPositions = bitboards[static_cast<int>(pieceType)][opponent];
 
+        // Utility::printGrid(enemySliderPositions, std::cout);
         while (enemySliderPositions) {
             uint64_t sliderPosition = Utility::bitScanForward(enemySliderPositions);
             uint64_t attacks = getAttackMap(sliderPosition, pieceType, oppositionPositions, friendlyPositions & ~fromPosition, opponent);
+            // Utility::printGrid(attacks, std::cout);
 
             // Check if piece to be moved is pinned.
             if (attacks & kingPosition) {
                 // To be legal move the pinned piece must be moved along ray of attack.
                 // Computes attack map from king position. Intersection with attack map from source of slider corresponds to sliding attack ray.
                 // Sliding attack ray may include some extra bits behind the sliderPosition
-                uint64_t attackRay = attacks & getAttackMap(kingPosition, pieceType, oppositionPositions, friendlyPositions & ~fromPosition, opponent);
+                uint64_t attackRay = attacks & getAttackMap(Utility::bitScanForward(kingPosition), pieceType, oppositionPositions, friendlyPositions & ~fromPosition, opponent);
                 if (!(attackRay & toPosition))
                     return false;
             }
@@ -239,15 +248,17 @@ namespace AdiChess {
     }
 
     void Board::updateState() {
-        state = std::make_shared<StateInfo>(state->halfMoveClock, state->fullMoveNumber, state->enPassantTarget, state->castlingRights, state);
+        state = std::make_shared<StateInfo>(state->halfMoveClock, state->fullMoveNumber, state->enPassantTarget, state->castlingRights, state, state->descr);
     }
 
     uint64_t Board::getAttackMap(uint64_t position, Piece::Type const pieceType, uint64_t friendlyOccupied, uint64_t oppositionOccupied, Side const &side) const {
+        assert(position <= 63);
+        
         switch (pieceType) {
             case Piece::Type::P:
                 return MoveGeneration::pawnAttacks[side][position] & oppositionOccupied;
             case Piece::Type::K:
-                return ((MoveGeneration::pawnAttacks[0][position] | MoveGeneration::pawnAttacks[1][position]) & ~friendlyOccupied) | MoveGeneration::getFileAttacks(friendlyOccupied, -1, position) | MoveGeneration::getRankAttacks(friendlyOccupied, -1, position);
+                return MoveGeneration::kingAttacks[position] & ~friendlyOccupied;
             case Piece::Type::N:   
                 return MoveGeneration::knightAttacks[position] & ~friendlyOccupied;
             case Piece::Type::B:
@@ -255,8 +266,7 @@ namespace AdiChess {
             case Piece::Type::R:
                 return MoveGeneration::getFileAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getRankAttacks(friendlyOccupied, oppositionOccupied, position);
             case Piece::Type::Q:
-                return MoveGeneration::getDiagonalAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getAntiDiagonalAttacks(friendlyOccupied, oppositionOccupied, position) 
-                | MoveGeneration::getFileAttacks(friendlyOccupied, oppositionOccupied, position) | MoveGeneration::getRankAttacks(friendlyOccupied, oppositionOccupied, position);
+                return getAttackMap(position, Piece::Type::B, friendlyOccupied, oppositionOccupied, side) | getAttackMap(position, Piece::Type::R, friendlyOccupied, oppositionOccupied, side);
             default:
                 break;
         }

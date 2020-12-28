@@ -15,6 +15,7 @@ enum Direction {
 extern uint64_t rayAttacks[Direction::NUM_DIRECTIONS][64];
 extern uint64_t pawnAttacks[2][64];
 extern uint64_t knightAttacks[64];
+extern uint64_t kingAttacks[64];
 
 void init();
 
@@ -22,6 +23,8 @@ uint64_t getRankAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, 
 uint64_t getFileAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, uint64_t position);
 uint64_t getDiagonalAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, uint64_t position);
 uint64_t getAntiDiagonalAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, uint64_t position);
+
+std::string positionToString(uint64_t position);
 
 enum: uint64_t {
     rank1 = 0xFF,

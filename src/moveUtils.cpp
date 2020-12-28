@@ -1,10 +1,16 @@
 #include "moveUtils.h"
+#include <iostream>
 
 namespace MoveGeneration {
 
 uint64_t rayAttacks[Direction::NUM_DIRECTIONS][64] = {0};
 uint64_t pawnAttacks[2][64] = {0};
 uint64_t knightAttacks[64] = {0};
+uint64_t kingAttacks[64] = {0};
+
+std::string positionToString(uint64_t position) {
+    return (static_cast<char>('h' - (position % 8))) + std::to_string((position / 8) + 1);
+}
 
 uint64_t eastN(uint64_t board, int n);
 uint64_t westN(uint64_t board, int n);
@@ -27,13 +33,23 @@ uint64_t getRayAttacks(uint64_t occupied, Direction direction, uint64_t position
 }
 
 uint64_t getRayAttacks(uint64_t friendlyOccupied, uint64_t oppositionOccupied, Direction direction, uint64_t position) {
-    uint64_t attacks = getRayAttacks(oppositionOccupied, direction, position);
-    while (friendlyOccupied) {
-        uint64_t friendlyPosition = Utility::bitScanForward(friendlyOccupied);
-        attacks &= ~(rayAttacks[direction][friendlyPosition] | (1ULL << friendlyPosition));
-        Utility::clearBit(friendlyOccupied, friendlyPosition);
+    assert(position <= 63);
+    assert(~(friendlyOccupied & oppositionOccupied));
+    uint64_t attacks = rayAttacks[direction][position];
+    uint64_t blockers = attacks & (friendlyOccupied | oppositionOccupied);
+    // If no blockers we can take attacks as is
+    while (blockers) {
+        // Checks if positive ray attack or negative ray attack
+        uint64_t blocker = 0;
+        if (direction <= Direction::E) {
+            blocker = Utility::bitScanForward(blockers);
+        } else {
+            blocker = Utility::bitScanReverse(blockers);
+        }
+        attacks &= ~rayAttacks[direction][blocker];
+        Utility::clearBit(blockers, blocker);
     }
-    return attacks;
+    return attacks &= ~friendlyOccupied;
 }
 
 // Friendly and opposition occupied attacks
@@ -55,13 +71,11 @@ uint64_t getAntiDiagonalAttacks(uint64_t friendlyOccupied, uint64_t oppositionOc
 
 // Initialises rays, pawn and knight attack maps. Invoked once at engine start up.
 void init() {
-
     for (uint64_t position = 0; position < 64; ++position) {
         rayAttacks[Direction::N][position] = 0x0101010101010100ULL << position;
         rayAttacks[Direction::S][position] = 0x0080808080808080ULL >> (63 - position);
-        uint8_t bitsRight = position % 8ULL;
-        rayAttacks[Direction::E][position] = ((1ULL << bitsRight) - 1ULL) << (position - bitsRight);
-        rayAttacks[Direction::W][position] = position == 63 ? 0 : ((1ULL << 7) - bitsRight - 1ULL) << (position + 1);
+        rayAttacks[Direction::E][position] = ((1ULL << (position % 8))-1) << (position - (position % 8));
+        rayAttacks[Direction::W][position] = (0xFFULL << (8*Utility::getRow(position))) & ~rayAttacks[Direction::E][position] & ~(1ULL << position);
         rayAttacks[Direction::NE][position] = eastN(0x102040810204000ULL, 7ULL - Utility::getCol(position)) << (Utility::getRow(position) << 3);
         rayAttacks[Direction::NW][position] = westN(0x8040201008040200ULL, Utility::getCol(position)) << (Utility::getRow(position) << 3);
         rayAttacks[Direction::SE][position] = eastN(0x40201008040201ULL, 7ULL - Utility::getCol(position)) >> ((7ULL - Utility::getRow(position)) << 3);
@@ -91,7 +105,15 @@ void init() {
                 knightAttacks[position] |= (pos >> 10);
             }
         }
-        
+
+        kingAttacks[position] |= pawnAttacks[0][position] | pawnAttacks[1][position];
+        kingAttacks[position] |= getRayAttacks(-1, Direction::S, position) | getRayAttacks(-1, Direction::N, position);
+        if (Utility::getCol(position) != 0) {
+            kingAttacks[position] |= 1ULL << (position-1);
+        }
+        if (Utility::getCol(position) != 7) {
+            kingAttacks[position] |= 1ULL << (position+1);
+        }
     }
 }
 
@@ -112,6 +134,5 @@ uint64_t westN(uint64_t board, int n) {
 
   return newBoard;
 }
-
 
 }
