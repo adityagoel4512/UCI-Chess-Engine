@@ -2,7 +2,7 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
-
+#include "moveGenerator.h"
 namespace AdiChess {
 
     Board::Board(std::string const &fenString) {
@@ -47,7 +47,6 @@ namespace AdiChess {
         if (currentPlayer == Side::B) {
             ++(state->fullMoveNumber);
         }
-
         std::swap(currentPlayer, opponent);
     }
 
@@ -107,97 +106,169 @@ namespace AdiChess {
         std::swap(currentPlayer, opponent);
 
     }
-
+    bool Board::legalSlow(Move const &move) {
+        makeMove(move);
+        bool ok = !inCheck(opponent);
+        unmakeMove(move);
+        return ok;
+    }
     bool Board::legalMove(Move const &move) {
-        uint64_t friendlyPositions = getPositions(currentPlayer);
-        uint64_t oppositionAttacks = 0;
+        // makeMove(move);
+        // bool ans = !inCheck(opponent);
+        // unmakeMove(move);
+        // return ans;
+        const uint64_t friendlyPositions = getPositions(currentPlayer);
         uint64_t oppositionPositions = getPositions(opponent);
-        uint64_t nonKingFriendlyPositions = friendlyPositions & ~getPositions(Piece(Piece::Type::K, currentPlayer));
-
+        uint64_t oppositionAttacks = 0;
         while (oppositionPositions) {
-            uint64_t oppositionPosition = Utility::bitScanForward(oppositionPositions);
-            oppositionAttacks |= MoveGeneration::pawnAttacks[opponent][oppositionPosition] | getAttackMap(oppositionPosition, (*this)(oppositionPosition).type, getPositions(opponent), nonKingFriendlyPositions, opponent);
-            Utility::clearBit(oppositionPositions, oppositionPosition);
+            uint64_t pos = Utility::bitScanForward(oppositionPositions);
+            auto piece = (*this)(pos);
+            // Kingless so we get attack rays "through" king as well, avoiding buggy evasion of sliding attacks
+            oppositionAttacks |= getAttackMap(pos, piece.type, getPositions(opponent), friendlyPositions & ~bitboards[static_cast<int>(Piece::Type::K)][opponent], piece.side);
+            if (piece.type == Piece::Type::P) {
+                oppositionAttacks |= MoveGeneration::pawnAttacks[opponent][pos];
+            }
+            Utility::clearBit(oppositionPositions, pos);
         }
         
         return legalMove(move, oppositionAttacks, getPositions(opponent), friendlyPositions);
     }
 
+    bool Board::isAbsolutePin(uint64_t sourceAttackPositions, uint64_t defenderPosition) {
+        uint64_t friendlies = getPositions(currentPlayer) ^ defenderPosition;
+        uint64_t attackers = getPositions(opponent);
+        while (sourceAttackPositions) {
+            uint64_t pos = Utility::bitScanForward(sourceAttackPositions);
+            Piece::Type pt = (*this)(pos).type;
+            uint64_t attacks = getAttackMap(pos, pt, attackers, friendlies, opponent);
+            if (attacks & bitboards[static_cast<int>(Piece::Type::K)][currentPlayer]) {
+                return true;
+            }
+            Utility::clearBit(sourceAttackPositions, pos);
+        }
+
+        return false;
+    }
+
+    // oppositionAttacks has attacks including pawn attacked squares and excluding king (so if king moves back along ray or toward queen that is not legal)
     bool Board::legalMove(Move const &move, uint64_t oppositionAttacks, uint64_t oppositionPositions, uint64_t friendlyPositions) {
 
-        uint64_t kingPosition = getPositions(Piece(Piece::Type::K, currentPlayer));
+        uint64_t kingPosition = bitboards[static_cast<int>(Piece::Type::K)][currentPlayer];
+
         auto flag = move.getFlag();
-        switch (move.getFlag()) {
+
+        switch (flag) {
             case Move::Flag::EN_PASSANT_CAPTURE:
                 return legalEnPassantMove(move, oppositionPositions, friendlyPositions, kingPosition);
             case Move::Flag::KING_CASTLE:
-                return oppositionAttacks & (currentPlayer == Side::W ? 0xE : 0x0E00000000000000);
+                return !(oppositionAttacks & (currentPlayer == Side::W ? 0xE : 0x0E00000000000000));
             case Move::Flag::QUEEN_CASTLE:
-                return oppositionAttacks & (currentPlayer == Side::W ? 0x78 : 0x7800000000000000);
+                return !(oppositionAttacks & (currentPlayer == Side::W ? 0x78 : 0x7800000000000000));
         }            
 
         uint64_t fromPosition = 1ULL << move.getFrom();
         uint64_t toPosition = 1ULL << move.getTo();
 
-        // A king move is legal if and only if it does not move into check.
-        if (kingPosition == fromPosition)
+        if (kingPosition == fromPosition) {
+            // A king move is legal if and only if it does not move into check.
             return !(oppositionAttacks & toPosition);
+        } else {
+            // Compute checking pieces
+            uint64_t checkingPieces = 0;
+            const uint64_t oppositions = oppositionPositions;
+            const uint64_t friendlies = friendlyPositions;
 
-        // A non-king move is legal if and only if it is not pinned or it is moving along the ray towards or away from the king along 
-        // which it is being attacked. Note that a piece can only be pinned by a sliding piece.
-        if (!legalNonKingMove<Piece::Type::B>(oppositionPositions, friendlyPositions, fromPosition, toPosition, kingPosition))
-            return false;
+            while (oppositionPositions) {
+                uint64_t pos = Utility::bitScanForward(oppositionPositions);
+                uint64_t attacks = getAttackMap(pos, (*this)(pos).type, oppositions, friendlies, opponent);
+                if (attacks & kingPosition) {
+                    // Piece gives check
+                    checkingPieces |= 1ULL << pos;
+                }
+                Utility::clearBit(oppositionPositions, pos);
+            }
 
-        if (!legalNonKingMove<Piece::Type::Q>(oppositionPositions, friendlyPositions, fromPosition, toPosition, kingPosition))
-            return false;
+            int checkCount = Utility::popCnt(checkingPieces);
 
-        if (!legalNonKingMove<Piece::Type::R>(oppositionPositions, friendlyPositions, fromPosition, toPosition, kingPosition))
-            return false;
+            // If in double check only a king move would have been valid
+            if (checkCount >= 2) {
+                return false;
+            }
 
-        return true;        
+            if (checkCount == 1) {
+                uint64_t checkingPiecePosition = Utility::bitScanForward(checkingPieces);
+                uint64_t updatedFriendlies = (friendlies ^ fromPosition) | toPosition;
+
+                // One check, non king move. Legal move must be to capture or if sliding piece attack block the piece giving check
+                if (toPosition == checkingPieces) {
+                    return !isAbsolutePin(oppositions ^ checkingPieces, fromPosition);
+                } else if ((getAttackMap(checkingPiecePosition, (*this)(checkingPiecePosition).type, oppositions, updatedFriendlies, opponent) & kingPosition) == 0) {
+                    return !isAbsolutePin(oppositions ^ checkingPieces, fromPosition);
+                } else {
+                    return false;
+                }
+
+            } else {
+                return !isAbsolutePin(oppositions, fromPosition);
+            }
+            
+        } 
 
     }
     
     template <Piece::Type pieceType>
-    bool Board::legalNonKingMove(uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t fromPosition, uint64_t toPosition, uint64_t kingPosition) const {
-        uint64_t enemySliderPositions = bitboards[static_cast<int>(pieceType)][opponent];
+    bool Board::legalNonKingMove(uint64_t x, uint64_t y, uint64_t fromPosition, uint64_t toPosition, uint64_t kingPosition) const {
+        uint64_t attackerPiecePositions = bitboards[static_cast<int>(pieceType)][opponent];
+        uint64_t friendly = getPositions(opponent);
+        uint64_t enemy = getPositions(currentPlayer);
 
-        // Utility::printGrid(enemySliderPositions, std::cout);
-        while (enemySliderPositions) {
-            uint64_t sliderPosition = Utility::bitScanForward(enemySliderPositions);
-            uint64_t attacks = getAttackMap(sliderPosition, pieceType, oppositionPositions, friendlyPositions & ~fromPosition, opponent);
-            // Utility::printGrid(attacks, std::cout);
+        // Friendly is the attacker!!!
+        while (attackerPiecePositions) {
+            uint64_t pos = Utility::bitScanForward(attackerPiecePositions);
+            uint64_t attackMap = getAttackMap(pos, pieceType, friendly, enemy & ~kingPosition, opponent);
+            // See if slider has king in check
 
-            // Check if piece to be moved is pinned.
-            if (attacks & kingPosition) {
-                // To be legal move the pinned piece must be moved along ray of attack.
-                // Computes attack map from king position. Intersection with attack map from source of slider corresponds to sliding attack ray.
-                // Sliding attack ray may include some extra bits behind the sliderPosition
-                uint64_t attackRay = attacks & getAttackMap(Utility::bitScanForward(kingPosition), pieceType, oppositionPositions, friendlyPositions & ~fromPosition, opponent);
-                if (!(attackRay & toPosition))
-                    return false;
+
+            Utility::clearBit(attackerPiecePositions, pos);
+        }
+        
+        
+    }
+
+    bool Board::inCheck(Side const &side) const {
+        Side other = static_cast<Side>((side+1)%(Side::NUM_SIDES));
+        uint64_t enemyPos = getPositions(side);
+        for (int piece = 0; piece < static_cast<int>(Piece::Type::NUM_PIECES); ++piece) {
+            auto type = static_cast<Piece::Type>(piece);
+            
+            // Positions of side checking
+            uint64_t positions = getPositions(Piece(type, other));
+           
+
+            // Friendly is side attacking (other)
+            uint64_t friendly = getPositions(other);
+            uint64_t enemy = getPositions(side);
+
+            while (positions) {
+                uint64_t position = Utility::bitScanForward(positions);
+                uint64_t attack = getAttackMap(position, type, friendly, enemyPos, other);
+                if (attack & bitboards[static_cast<int>(Piece::Type::K)][side]) {
+                    return true;
+                }
+                Utility::clearBit(positions, position);
             }
-
-            Utility::clearBit(enemySliderPositions, sliderPosition);
+            
         }
 
-        return true;
+        return false;
     }
 
     bool Board::legalEnPassantMove(Move const &move, uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t kingPosition) {
         // En passant captures are infrequent enough that we can check their legality by making the move and seeing if king is left in check
         makeMove(move);
-        uint64_t oppositionPositionsCopy = oppositionPositions;
-        while (oppositionPositions) {
-            uint64_t oppositionPosition = Utility::bitScanForward(oppositionPositions);
-            if (getAttackMap(oppositionPosition, (*this)(oppositionPosition).type, oppositionPositionsCopy, friendlyPositions, opponent) & kingPosition) {
-                unmakeMove(move);
-                return false;
-            }
-            Utility::clearBit(oppositionPositions, oppositionPosition);
-        }
+        bool legal = !inCheck(opponent);
         unmakeMove(move);
-        return true;
+        return legal;
     }
     uint64_t Board::getPositions(Piece const &piece) const {
         return bitboards[static_cast<int>(piece.type)][piece.side];

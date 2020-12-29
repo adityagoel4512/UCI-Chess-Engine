@@ -32,6 +32,8 @@ public:
     void makeMove(Move const &move);
     void unmakeMove(Move const &move);
     bool legalMove(Move const &move);
+    bool inCheck(Side const &side) const;
+    bool legalSlow(Move const &move);
 
     uint64_t getPositions(Piece const &piece) const;
     uint64_t getPositions(Side const &side) const;
@@ -89,11 +91,13 @@ private:
     void makeQueenSideCastle();
     void makeKingSideCastle();
 
+    bool isAbsolutePin(uint64_t attackSources, uint64_t defenderPosition);
+
     template<Piece::Type> bool legalNonKingMove(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t) const;
     bool legalEnPassantMove(Move const &move, uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t kingPosition);
 
     void updateState();
-
+    bool absolutelyPinned(uint64_t piecePosition, uint64_t attackRay);
     Piece operator() (int i, int j) const;
     void operator()(int i, int j, Piece const &piece);
 

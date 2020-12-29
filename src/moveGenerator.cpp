@@ -51,6 +51,8 @@ namespace MoveGeneration {
             std::cout << board << '\n';
         }
 
+        assert(position != 0);
+
         position = Utility::bitScanForward(position);
         // Generates all non-castling moves
         assert(position <= 63);
@@ -123,7 +125,7 @@ namespace MoveGeneration {
             uint64_t attackedPositions = board.getAttackMap(position, Piece::Type::P, friendlyOccupied, oppositionOccupied, currentPlayer);
             while (attackedPositions) {
                 uint64_t attackedPosition = Utility::bitScanForward(attackedPositions);
-                if (attackedPosition & promotionRank[currentPlayer]) {
+                if ((1ULL << attackedPosition) & promotionRank[currentPlayer]) {
                     // Promotion capture
                     moves.emplace_back(position, attackedPosition, Move::Flag::KNIGHT_PROMO_CAPTURE);
                     moves.emplace_back(position, attackedPosition, Move::Flag::BISHOP_PROMO_CAPTURE);
