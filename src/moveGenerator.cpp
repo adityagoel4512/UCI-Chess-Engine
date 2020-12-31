@@ -30,9 +30,9 @@ namespace MoveGeneration {
     void MoveGenerator::generateAttackMoves(uint64_t position) {
         assert(position <= 63);
         uint64_t attackedPositions = board.getAttackMap(position, pieceType, friendlyOccupied, oppositionOccupied, currentPlayer);
-
         while (attackedPositions) {
             uint64_t attackedPosition = Utility::bitScanForward(attackedPositions);
+            assert(attackedPosition != position);
             if (oppositionOccupied & (1ULL << attackedPosition)) {
                 moves.emplace_back(position, attackedPosition, Move::Flag::CAPTURE);
             } else {
@@ -47,9 +47,8 @@ namespace MoveGeneration {
     void MoveGenerator::generateMoves<Piece::Type::K>() {
         uint64_t position = board.getPositions(Piece(Piece::Type::K, currentPlayer));
 
-        if (position == 0) {
+        if (position == 0)
             std::cout << board << '\n';
-        }
 
         assert(position != 0);
 

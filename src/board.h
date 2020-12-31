@@ -59,7 +59,9 @@ public:
 
     friend std::ostream &operator<<(std::ostream &os, Board const &board) {
         os << std::string("Description: ") << board.state->descr << std::string("\n");
+        os << std::string("Castling: ") << std::to_string(+board.state->castlingRights) << std::string("\n");
         os << std::string("Full moves: ") << std::to_string(board.state->fullMoveNumber) << std::string("\n");
+        os << std::string("En passant: ") << std::to_string(board.state->enPassantTarget) << std::string("\n");
         os << std::string("Side to move: ");
 
         if (board.currentPlayer == Side::W) {
@@ -75,7 +77,7 @@ public:
             for (int j = 0; j < 8; ++j) {
                 os << std::string("| ") << board(i, j) << std::string(" ");
             }
-            os << std::string("|\n+---+---+---+---+---+---+---+---+\n");
+            os << std::string("| ") << std::to_string(8-i) << std::string("\n+---+---+---+---+---+---+---+---+\n");
         }
         
         return os << std::string("  a   b   c   d   e   f   g   h\n");
@@ -90,13 +92,17 @@ private:
     void makePromotion(Move const &move);
     void makeQueenSideCastle();
     void makeKingSideCastle();
+    void unmakeQueenSideCastle();
+    void unmakeKingSideCastle();
 
-    bool isAbsolutePin(uint64_t attackSources, uint64_t defenderPosition);
+    uint64_t getAbsolutePinRay(uint64_t attackSources, uint64_t defenderPosition);
 
     template<Piece::Type> bool legalNonKingMove(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t) const;
     bool legalEnPassantMove(Move const &move, uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t kingPosition);
 
     void updateState();
+    void updateCastlingBits(Piece const &piece, uint64_t moveSource);
+
     bool absolutelyPinned(uint64_t piecePosition, uint64_t attackRay);
     Piece operator() (int i, int j) const;
     void operator()(int i, int j, Piece const &piece);
