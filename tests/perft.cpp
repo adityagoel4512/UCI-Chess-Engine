@@ -22,6 +22,7 @@ uint64_t perft(int depth, AdiChess::Board &board) {
 
     return nodes;
 }
+
 TEST(StartPosition, Perft0) {
     Board board;
     ASSERT_EQ(perft(0, board), 1);
