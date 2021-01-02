@@ -1,0 +1,7 @@
+find_package(GTest REQUIRED)
+add_compile_options(-g)
+add_executable(UnitTests perft.cpp)
+message("sndvuionsdoinsdoifn")
+add_library(Chess ${PROJECT_SOURCE_DIR}/src/board.cpp ${PROJECT_SOURCE_DIR}/src/moveUtils.cpp ${PROJECT_SOURCE_DIR}/src/move.cpp ${PROJECT_SOURCE_DIR}/src/moveGenerator.cpp)
+target_link_libraries(UnitTests GTest::GTest GTest::Main Chess)
+gtest_discover_tests(UnitTests)

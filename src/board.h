@@ -33,15 +33,14 @@ public:
     void unmakeMove(Move const &move);
     bool legalMove(Move const &move);
     bool inCheck(Side const &side) const;
-    bool legalSlow(Move const &move);
 
-    uint64_t getPositions(Piece const &piece) const;
+    uint64_t getPositions(Piece::Type const &pieceType, Side const &side) const;
     uint64_t getPositions(Side const &side) const;
 
     bool canQueenSideCastle(uint64_t occupiedPositions) const;
     bool canKingSideCastle(uint64_t occupiedPositions) const;
 
-    uint64_t getAttackMap(uint64_t position, Piece::Type const pieceType, uint64_t friendlyOccupied, uint64_t oppositionOccupied, Side const &side) const;
+    uint64_t getAttackMap(uint64_t position, Piece::Type const &pieceType, uint64_t friendlyOccupied, uint64_t oppositionOccupied, Side const &side) const;
 
     bool legalMove(Move const &move, uint64_t oppositionAttacks, uint64_t oppositionPositions, uint64_t friendlyPositions);
 
@@ -84,7 +83,6 @@ public:
     }
 
 private:
-    void setPiece(uint64_t position);
     void clearPiece(int position, Piece const &piece);
     void movePiece(uint64_t from, uint64_t to);
 
@@ -97,19 +95,19 @@ private:
 
     uint64_t getAbsolutePinRay(uint64_t attackSources, uint64_t defenderPosition);
 
-    template<Piece::Type> bool legalNonKingMove(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t) const;
-    bool legalEnPassantMove(Move const &move, uint64_t oppositionPositions, uint64_t friendlyPositions, uint64_t kingPosition);
+    bool legalEnPassantMove(Move const &move);
 
     void updateState();
     void updateCastlingBits(Piece const &piece, uint64_t moveSource);
 
-    bool absolutelyPinned(uint64_t piecePosition, uint64_t attackRay);
     Piece operator() (int i, int j) const;
     void operator()(int i, int j, Piece const &piece);
 
     void parseFenString(std::string const &fenString);
 
     uint64_t bitboards[6][2] = {0};
+    uint64_t aggregateBitboards[2] = {0};
+
     Side currentPlayer;
     Side opponent;
 

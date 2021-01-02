@@ -1,5 +1,4 @@
 #include "moveGenerator.h"
-#include <vector>
 #include <iostream>
 namespace MoveGeneration {
 
@@ -16,11 +15,10 @@ namespace MoveGeneration {
     template<Piece::Type pieceType>
     void MoveGenerator::generateMoves() {
         
-        uint64_t positions = board.getPositions(Piece(pieceType, currentPlayer));
+        uint64_t positions = board.getPositions(pieceType, currentPlayer);
 
         while(positions) {
             uint64_t position = Utility::bitScanForward(positions);
-            assert(position <= 63);
             generateAttackMoves<pieceType>(position);
             Utility::clearBit(positions, position);
         }
@@ -45,7 +43,7 @@ namespace MoveGeneration {
     // Specialisation for King to add consideration for castling
     template<>
     void MoveGenerator::generateMoves<Piece::Type::K>() {
-        uint64_t position = board.getPositions(Piece(Piece::Type::K, currentPlayer));
+        uint64_t position = board.getPositions(Piece::Type::K, currentPlayer);
 
         if (position == 0)
             std::cout << board << '\n';
@@ -54,7 +52,6 @@ namespace MoveGeneration {
 
         position = Utility::bitScanForward(position);
         // Generates all non-castling moves
-        assert(position <= 63);
         generateAttackMoves<Piece::Type::K>(position);
 
         // Generates pseudo legal castling moves
@@ -70,10 +67,9 @@ namespace MoveGeneration {
     template<>
     void MoveGenerator::generatePawnPushMove<Side::B>(uint64_t pawnPosition, uint64_t freePositions) {
         // Single pawn push
-        uint64_t pawnBitMap = 1ULL << pawnPosition;
-        uint64_t singlePawnPush = (pawnBitMap >> 8) & freePositions;
+        uint64_t singlePawnPushPosition = pawnPosition-8;
+        uint64_t singlePawnPush = (1ULL << singlePawnPushPosition) & freePositions;
         if (singlePawnPush & rank1) {
-            uint64_t singlePawnPushPosition = pawnPosition-8;
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::KNIGHT_PROMOTION);
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::BISHOP_PROMOTION);
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::ROOK_PROMOTION);
@@ -92,16 +88,14 @@ namespace MoveGeneration {
     template<>
     void MoveGenerator::generatePawnPushMove<Side::W>(uint64_t pawnPosition, uint64_t freePositions) {
         // Single pawn push
-        uint64_t pawnBitMap = 1ULL << pawnPosition;
-        uint64_t singlePawnPush = (pawnBitMap << 8) & freePositions;
+        uint64_t singlePawnPushPosition = pawnPosition+8;
+        uint64_t singlePawnPush = (1ULL << singlePawnPushPosition) & freePositions;
         if (singlePawnPush & rank8) {
-            uint64_t singlePawnPushPosition = pawnPosition+8;
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::KNIGHT_PROMOTION);
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::BISHOP_PROMOTION);
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::ROOK_PROMOTION);
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::QUEEN_PROMOTION);
         } else if (singlePawnPush) {
-            uint64_t singlePawnPushPosition = pawnPosition+8;
             moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::QUIET_MOVE);
             // Double pawn push
             uint64_t doublePawnPush = (singlePawnPush << 8) & rank4 & freePositions;
@@ -114,7 +108,7 @@ namespace MoveGeneration {
     // Specialisation for pawns to add consideration for promotions, push moves and en passant captures
     template<>
     void MoveGenerator::generateMoves<Piece::Type::P>() {
-        uint64_t positions = board.getPositions(Piece(Piece::Type::P, currentPlayer));
+        uint64_t positions = board.getPositions(Piece::Type::P, currentPlayer);
         uint64_t oppositionOccupied = board.getPositions(board.getOpponent());
         uint64_t freePositions = ~(friendlyOccupied | oppositionOccupied);
 

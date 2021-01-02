@@ -4,7 +4,7 @@
 namespace AdiChess {
     
     enum Side {
-        W, B, NONE, NUM_SIDES=2
+        W=0, B=1, NUM_SIDES=2, NONE=3
     };
 
     struct Piece {
