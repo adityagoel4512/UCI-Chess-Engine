@@ -15,6 +15,12 @@ namespace Utility {
         return __builtin_ctzll(bitString);
     }
 
+    constexpr uint64_t bitScanPop(uint64_t &bitString) {
+        uint64_t bitScan = __builtin_ctzll(bitString);
+        bitString &= bitString - 1;
+        return bitScan;
+    }
+
     constexpr uint64_t bitScanReverse(uint64_t bitString) {
         if (!bitString)
             return -1;

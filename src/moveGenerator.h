@@ -5,8 +5,8 @@ using namespace AdiChess;
 namespace MoveGeneration {
 
 enum class GenType {
-    LEGAL,
-    PSEUDO_LEGAL
+    PSEUDO_LEGAL,
+    CAPTURES
 };
 
 class MoveGenerator {
@@ -40,7 +40,7 @@ private:
 
     void generatePseudoLegalMoves();
 
-    const Board board;
+    const Board &board;
     const Side currentPlayer;
     const uint64_t friendlyOccupied;
     const uint64_t oppositionOccupied;

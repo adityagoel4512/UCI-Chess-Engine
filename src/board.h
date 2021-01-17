@@ -5,6 +5,8 @@
 #include <stack>
 #include <memory>
 
+#define DEBUG 1
+
 namespace AdiChess {
 
 struct StateInfo {
@@ -17,7 +19,7 @@ struct StateInfo {
     uint64_t enPassantTarget;
     uint8_t castlingRights = 0;
     std::shared_ptr<StateInfo> prev;
-    Piece capturedPiece = Piece(Piece::Type::NONE, Side::NONE);
+    Piece capturedPiece{Piece::Type::NONE, Side::NONE};
     std::string descr;
 };
 
@@ -29,10 +31,11 @@ public:
     Piece operator()(int position) const;
     void operator()(int position, Piece const &piece);
 
-    void makeMove(Move const &move);
+    Board& makeMove(Move const &move);
     void unmakeMove(Move const &move);
     bool legalMove(Move const &move);
     bool inCheck(Side const &side) const;
+    bool fiftyMoves() const;
 
     uint64_t getPositions(Piece::Type const &pieceType, Side const &side) const;
     uint64_t getPositions(Side const &side) const;
@@ -57,8 +60,10 @@ public:
     }
 
     friend std::ostream &operator<<(std::ostream &os, Board const &board) {
+#if DEBUG
         os << std::string("Description: ") << board.state->descr << std::string("\n");
-        os << std::string("Castling: ") << std::to_string(+board.state->castlingRights) << std::string("\n");
+#endif
+        os << std::string("Castling: ") << std::to_string(board.state->castlingRights) << std::string("\n");
         os << std::string("Full moves: ") << std::to_string(board.state->fullMoveNumber) << std::string("\n");
         os << std::string("En passant: ") << std::to_string(board.state->enPassantTarget) << std::string("\n");
         os << std::string("Side to move: ");

@@ -3,10 +3,10 @@
 namespace MoveGeneration {
 
     MoveGenerator::MoveGenerator(AdiChess::Board const &board_): 
-        board(board_), 
-        currentPlayer(board_.getCurrentPlayer()), 
-        friendlyOccupied(board.getPositions(currentPlayer)),
-        oppositionOccupied(board.getPositions(board_.getOpponent())) {
+        board{board_}, 
+        currentPlayer{board_.getCurrentPlayer()}, 
+        friendlyOccupied{board.getPositions(currentPlayer)},
+        oppositionOccupied{board.getPositions(board_.getOpponent())} {
         generatePseudoLegalMoves();
     }
 
@@ -29,14 +29,13 @@ namespace MoveGeneration {
         assert(position <= 63);
         uint64_t attackedPositions = board.getAttackMap(position, pieceType, friendlyOccupied, oppositionOccupied, currentPlayer);
         while (attackedPositions) {
-            uint64_t attackedPosition = Utility::bitScanForward(attackedPositions);
+            uint64_t attackedPosition = Utility::bitScanPop(attackedPositions);
             assert(attackedPosition != position);
             if (oppositionOccupied & (1ULL << attackedPosition)) {
-                moves.emplace_back(position, attackedPosition, Move::Flag::CAPTURE);
+                moves.emplace_back(position, attackedPosition, Move::CAPTURE);
             } else {
-                moves.emplace_back(position, attackedPosition, Move::Flag::QUIET_MOVE);
+                moves.emplace_back(position, attackedPosition, Move::QUIET_MOVE);
             }
-            Utility::clearBit(attackedPositions, attackedPosition);
         }
     }
 
@@ -46,7 +45,7 @@ namespace MoveGeneration {
         uint64_t position = board.getPositions(Piece::Type::K, currentPlayer);
 
         if (position == 0)
-            std::cout << board << '\n';
+            std::cerr << "No king error\n" << board << '\n';
 
         assert(position != 0);
 
@@ -56,11 +55,11 @@ namespace MoveGeneration {
 
         // Generates pseudo legal castling moves
         if (board.canKingSideCastle(oppositionOccupied | friendlyOccupied)) {
-            moves.emplace_back(0, 0, Move::Flag::KING_CASTLE);
+            moves.emplace_back(0, 0, Move::KING_CASTLE);
         }
 
         if (board.canQueenSideCastle(oppositionOccupied | friendlyOccupied)) {
-            moves.emplace_back(0, 0, Move::Flag::QUEEN_CASTLE);
+            moves.emplace_back(0, 0, Move::QUEEN_CASTLE);
         }
     }
     
@@ -70,17 +69,17 @@ namespace MoveGeneration {
         uint64_t singlePawnPushPosition = pawnPosition-8;
         uint64_t singlePawnPush = (1ULL << singlePawnPushPosition) & freePositions;
         if (singlePawnPush & rank1) {
-            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::KNIGHT_PROMOTION);
-            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::BISHOP_PROMOTION);
-            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::ROOK_PROMOTION);
-            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::QUEEN_PROMOTION);
+            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::KNIGHT_PROMOTION);
+            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::BISHOP_PROMOTION);
+            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::ROOK_PROMOTION);
+            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::QUEEN_PROMOTION);
         } else if (singlePawnPush) {
             uint64_t singlePawnPushPosition = pawnPosition-8;
-            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::QUIET_MOVE);
+            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::QUIET_MOVE);
             // Double pawn push
             uint64_t doublePawnPush = (singlePawnPush >> 8) & rank5 & freePositions;
             if (doublePawnPush) {
-                moves.emplace_back(pawnPosition, singlePawnPushPosition-8, Move::Flag::DOUBLE_PAWN_PUSH);
+                moves.emplace_back(pawnPosition, singlePawnPushPosition-8, Move::DOUBLE_PAWN_PUSH);
             }
         }
     }
@@ -91,16 +90,16 @@ namespace MoveGeneration {
         uint64_t singlePawnPushPosition = pawnPosition+8;
         uint64_t singlePawnPush = (1ULL << singlePawnPushPosition) & freePositions;
         if (singlePawnPush & rank8) {
-            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::KNIGHT_PROMOTION);
-            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::BISHOP_PROMOTION);
-            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::ROOK_PROMOTION);
-            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::QUEEN_PROMOTION);
+            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::KNIGHT_PROMOTION);
+            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::BISHOP_PROMOTION);
+            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::ROOK_PROMOTION);
+            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::QUEEN_PROMOTION);
         } else if (singlePawnPush) {
-            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::Flag::QUIET_MOVE);
+            moves.emplace_back(pawnPosition, singlePawnPushPosition, Move::QUIET_MOVE);
             // Double pawn push
             uint64_t doublePawnPush = (singlePawnPush << 8) & rank4 & freePositions;
             if (doublePawnPush) {
-                moves.emplace_back(pawnPosition, singlePawnPushPosition+8, Move::Flag::DOUBLE_PAWN_PUSH);
+                moves.emplace_back(pawnPosition, singlePawnPushPosition+8, Move::DOUBLE_PAWN_PUSH);
             }
         }
     }
@@ -113,22 +112,21 @@ namespace MoveGeneration {
         uint64_t freePositions = ~(friendlyOccupied | oppositionOccupied);
 
         while(positions) {
-            uint64_t position = Utility::bitScanForward(positions);
+            uint64_t position = Utility::bitScanPop(positions);
             // Generates diagonal (non en-passant attacks from position)
             uint64_t attackedPositions = board.getAttackMap(position, Piece::Type::P, friendlyOccupied, oppositionOccupied, currentPlayer);
             while (attackedPositions) {
-                uint64_t attackedPosition = Utility::bitScanForward(attackedPositions);
+                uint64_t attackedPosition = Utility::bitScanPop(attackedPositions);
                 if ((1ULL << attackedPosition) & promotionRank[currentPlayer]) {
                     // Promotion capture
-                    moves.emplace_back(position, attackedPosition, Move::Flag::KNIGHT_PROMO_CAPTURE);
-                    moves.emplace_back(position, attackedPosition, Move::Flag::BISHOP_PROMO_CAPTURE);
-                    moves.emplace_back(position, attackedPosition, Move::Flag::ROOK_PROMO_CAPTURE);
-                    moves.emplace_back(position, attackedPosition, Move::Flag::QUEEN_PROMO_CAPTURE);
+                    moves.emplace_back(position, attackedPosition, Move::KNIGHT_PROMO_CAPTURE);
+                    moves.emplace_back(position, attackedPosition, Move::BISHOP_PROMO_CAPTURE);
+                    moves.emplace_back(position, attackedPosition, Move::ROOK_PROMO_CAPTURE);
+                    moves.emplace_back(position, attackedPosition, Move::QUEEN_PROMO_CAPTURE);
                 } else {
                     // Standard capture
-                    moves.emplace_back(position, attackedPosition, Move::Flag::CAPTURE);
+                    moves.emplace_back(position, attackedPosition, Move::CAPTURE);
                 }
-                Utility::clearBit(attackedPositions, attackedPosition);
             }
 
             // Generates push moves
@@ -141,15 +139,12 @@ namespace MoveGeneration {
             // Generates en passant moves
             uint64_t pawnAttacks = MoveGeneration::pawnAttacks[currentPlayer][position];
             while (pawnAttacks) {
-                uint64_t pawnAttack = Utility::bitScanForward(pawnAttacks);
+                uint64_t pawnAttack = Utility::bitScanPop(pawnAttacks);
                 if (board.validEnPassant(pawnAttack)) {
-                    moves.emplace_back(position, pawnAttack, Move::Flag::EN_PASSANT_CAPTURE);
+                    moves.emplace_back(position, pawnAttack, Move::EN_PASSANT_CAPTURE);
                     break;
                 }
-                Utility::clearBit(pawnAttacks, pawnAttack);
             }
-            
-            Utility::clearBit(positions, position);
         }
     }
     

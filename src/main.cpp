@@ -2,8 +2,7 @@
 #include <fstream>
 #include <string>
 
-#include "board.h"
-#include "moveGenerator.h"
+#include "search.h"
 uint64_t captures = 0; 
 uint64_t promotions = 0; 
 uint64_t castles = 0; 
@@ -40,5 +39,33 @@ uint64_t dividePerft(int depth, Board &board, int cur = 0) {
 }
 
 int main() {
+    Board board;
+    Search search(board);
+    int score = search.negamax(4);
+    std::cout << board << '\n';
+    std::cout << score << '\n';
+    std::cout << search.getPrincipalMove().getFrom() << '\n';
+    board.makeMove(search.getPrincipalMove());
+    std::cout << board << '\n';
+    board.makeMove({MoveGeneration::e7, MoveGeneration::e5, Move::DOUBLE_PAWN_PUSH});
+    std::cout << board << '\n';
+    std::cout << search.negamax(4) << '\n';
+    board.makeMove(search.getPrincipalMove());
+    std::cout << board << '\n';
+    board.makeMove({MoveGeneration::b7, MoveGeneration::b5, Move::DOUBLE_PAWN_PUSH});
+    std::cout << board << '\n';
+    std::cout << search.negamax(4) << '\n';
+    board.makeMove(search.getPrincipalMove());
+    std::cout << board << '\n';
+    board.makeMove({MoveGeneration::b8, MoveGeneration::c6, Move::QUIET_MOVE});
+    std::cout << board << '\n';
+    std::cout << search.negamax(4) << '\n';
+    board.makeMove(search.getPrincipalMove());
+    std::cout << board << '\n';
+    // board.makeMove({MoveGeneration::e5, MoveGeneration::f4, Move::CAPTURE});
+    // std::cout << board << '\n';
+    // std::cout << search.negamax(4) << '\n';
+    // board.makeMove(search.getPrincipalMove());
+    // std::cout << board << '\n';
     return EXIT_SUCCESS;
 }
