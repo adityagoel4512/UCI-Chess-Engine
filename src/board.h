@@ -27,7 +27,9 @@ class Board {
 
 public:
     explicit Board(std::string const &fenString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-
+    Board(const Board &) = delete;
+    Board& operator=(const Board &) = delete;
+    
     Piece operator()(int position) const;
     void operator()(int position, Piece const &piece);
 

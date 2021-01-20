@@ -13,10 +13,6 @@ namespace AdiChess {
 
     Board& Board::makeMove(Move const &move) {
 
-#if DEBUG
-
-#endif
-
         // Clone irreversible state
         updateState();
 
@@ -55,7 +51,7 @@ namespace AdiChess {
             ++(state->fullMoveNumber);
         }
         std::swap(currentPlayer, opponent);
-        assert(currentPlayer <= 1 && currentPlayer >=0);
+        assert(currentPlayer < Side::NUM_SIDES);
         return *this;
     }
 

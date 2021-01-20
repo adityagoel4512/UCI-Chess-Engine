@@ -4,7 +4,7 @@
 
 using namespace AdiChess;
 
-uint64_t perft(int depth, AdiChess::Board &board) {
+static uint64_t perft(int depth, AdiChess::Board &board) {
     if (depth == 0) {
         return 1;
     }
