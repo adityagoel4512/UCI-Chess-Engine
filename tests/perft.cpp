@@ -1,6 +1,6 @@
-#include "gtest/gtest.h"
 #include "../src/board.h"
 #include "../src/moveGenerator.h"
+#include "gtest/gtest.h"
 
 using namespace AdiChess;
 
@@ -10,12 +10,12 @@ static uint64_t perft(int depth, AdiChess::Board &board) {
     }
     uint64_t nodes = 0;
     MoveGeneration::MoveGenerator moveGenerator(board);
-    
+
     for (auto const &move : moveGenerator) {
 
         if (board.legalMove(move)) {
             board.makeMove(move);
-            nodes += perft(depth-1, board);
+            nodes += perft(depth - 1, board);
             board.unmakeMove(move);
         }
     }
@@ -64,16 +64,19 @@ TEST(Position2, Perft2) {
 }
 
 TEST(Position3, Perft1) {
-    Board board("rr3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
+    Board board(
+        "rr3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
     ASSERT_EQ(perft(1, board), 6);
 }
 
 TEST(Position3, Perft2) {
-    Board board("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
+    Board board(
+        "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
     ASSERT_EQ(perft(2, board), 264);
 }
 
 TEST(Position3, Perft3) {
-    Board board("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
+    Board board(
+        "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
     ASSERT_EQ(perft(3, board), 9467);
 }

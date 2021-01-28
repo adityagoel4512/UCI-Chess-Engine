@@ -1,3 +1,1 @@
-int main() {
-    return EXIT_SUCCESS;
-}
+int main() { return 0; }

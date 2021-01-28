@@ -1,0 +1,3 @@
+# LLVM style, but with 4 columns indentation.
+BasedOnStyle: LLVM
+IndentWidth: 4
