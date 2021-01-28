@@ -3,7 +3,7 @@
 namespace AdiChess {
 
 Move::Move(uint16_t from, uint16_t to, uint8_t flags)
-    : move{((flags & static_cast<uint16_t>(0xF)) << 12) | (from << 6) | to} {}
+    : move{static_cast<uint16_t>(((flags & 0xF) << 12) | (from << 6) | to)} {}
 
 uint64_t Move::getFrom() const { return (move >> 6) & 0x3F; }
 
